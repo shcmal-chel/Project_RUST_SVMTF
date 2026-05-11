@@ -1,7 +1,7 @@
 use crate::models::{
     TrafficNetwork, RoadSegment, Intersection, TrafficLight, EntryPoint, ExitPoint,
     Point, RoadType, PriorityRules, LightPhase, LightState, Vehicle, VehicleType,
-    VehicleTypeDistribution, TrafficNetworkData // Если вы решите вынести Data структуры в models
+    VehicleTypeDistribution // Если вы решите вынести Data структуры в models
 };
 use crate::validators::NetworkValidator;
 use serde::{Serialize, Deserialize};

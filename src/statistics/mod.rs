@@ -1,10 +1,9 @@
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Local};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Report {
-    pub timestamp: DateTime<Local>,
+    pub timestamp: String,
     pub total_vehicles_processed: u64,
     pub average_travel_time: f64,
     pub average_speed: f64,

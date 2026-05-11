@@ -29,6 +29,7 @@ use simulation::*;
 use traffic_network::*;
 use statistics::*;
 use scenarios::*;
+use validators::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -400,41 +401,4 @@ enum SimulationStatus {
     Running,
     Paused,
     Stopped,
-}
-
-impl Default for SimulationStatistics {
-    fn default() -> Self {
-        Self {
-            total_vehicles: 0,
-            average_speed: 0.0,
-            max_congestion: 0.0,
-            average_wait_time: 0.0,
-            throughput: 0.0,
-            most_congested_roads: Vec::new(),
-            current_vehicles: 0,
-        }
-    }
-}
-
-impl SimulationStatistics {
-    fn reset(&mut self) {
-        self.total_vehicles = 0;
-        self.average_speed = 0.0;
-        self.max_congestion = 0.0;
-        self.average_wait_time = 0.0;
-        self.throughput = 0.0;
-        self.most_congested_roads.clear();
-        self.current_vehicles = 0;
-    }
-}
-
-#[derive(Default)]
-pub struct SimulationStatistics {
-    pub total_vehicles: u32,
-    pub average_speed: f64,
-    pub max_congestion: f64,
-    pub average_wait_time: f64,
-    pub throughput: f64,
-    pub most_congested_roads: Vec<(String, f64)>,
-    pub current_vehicles: u32,
 }

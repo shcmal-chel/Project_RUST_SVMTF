@@ -2,6 +2,8 @@ use crate::models::*;
 use rand::Rng;
 use std::collections::VecDeque;
 
+pub use crate::statistics::SimulationStatistics;
+
 pub struct SimulationEngine {
     network: TrafficNetwork,
     time_step: f64,
@@ -104,9 +106,13 @@ impl SimulationEngine {
         // Логика разрешения конфликтов на перекрестках
         Vec::new()
     }
-    
-    fn calculate_statistics(&self) -> SimulationStatistics {
-        SimulationStatistics::default()
+
+    fn calculate_statistics(&self) -> crate::statistics::SimulationStatistics {
+        crate::statistics::SimulationStatistics::default()
+    }
+
+    pub fn get_statistics(&self) -> crate::statistics::SimulationStatistics {
+        self.calculate_statistics()
     }
 }
 
@@ -115,9 +121,10 @@ pub struct SimulationResult {
     pub vehicle_updates: Vec<VehicleUpdate>,
     pub new_vehicles: Vec<Vehicle>,
     pub conflicts: Vec<Conflict>,
-    pub statistics: SimulationStatistics,
+    pub statistics: crate::statistics::SimulationStatistics,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VehicleUpdate {
     pub vehicle_id: String,
     pub new_position: Point,
@@ -125,6 +132,7 @@ pub struct VehicleUpdate {
     pub current_road: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conflict {
     pub location: Point,
     pub vehicles_involved: Vec<String>,
@@ -135,15 +143,4 @@ pub enum ConflictType {
     Collision,
     NearMiss,
     TrafficViolation,
-}
-
-#[derive(Default)]
-pub struct SimulationStatistics {
-    pub total_vehicles_processed: u64,
-    pub average_travel_time: f64,
-    pub average_speed: f64,
-    pub max_congestion: f64,
-    pub average_wait_time: f64,
-    pub throughput: f64,
-    pub most_congested_roads: Vec<(String, f64)>,
 }

@@ -1,5 +1,4 @@
 use crate::models::*;
-use crate::traffic_network::TrafficNetwork;
 
 pub enum Scenario {
     BaseFlow,
