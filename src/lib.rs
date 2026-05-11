@@ -11,7 +11,6 @@ mod validators;
 
 use models::*;
 use simulation::*;
-use traffic_network::*;
 
 // Глобальное состояние симуляции
 thread_local! {
@@ -42,12 +41,12 @@ impl TrafficSimulation {
     }
     
     pub fn get_statistics(&self) -> JsValue {
-        let stats = self.engine.calculate_statistics();
+        let stats = self.engine.get_statistics();
         serde_wasm_bindgen::to_value(&stats).unwrap_or(JsValue::NULL)
     }
     
-    pub fn get_network_data(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.network).unwrap_or(JsValue::NULL)
+    pub fn calculate_statistics(&self) -> crate::statistics::SimulationStatistics {
+        self.engine.get_statistics()
     }
     
     pub fn set_traffic_light_phase(&mut self, light_id: &str, phase: usize) {
