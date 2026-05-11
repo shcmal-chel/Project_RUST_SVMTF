@@ -1,51 +1,58 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
 use crate::models::*;
+
 
 pub enum Scenario {
     BaseFlow,
-    IncreasedIntensity(String),
-    RoadClosure(String),
-    TrafficLightChanges(String, Vec<LightPhase>),
+    IncreasedIntensity,
+    RoadClosure,
+    TrafficLightChanges,
 }
 
 impl Scenario {
     pub fn apply(&self, network: &mut TrafficNetwork) -> Result<(), String> {
         match self {
             Scenario::BaseFlow => {
-                // Базовая конфигурация
+                // Стандартные параметры
+                for entry in &mut network.entry_points {
+                    entry.spawn_rate = 0.3;
+                }
+                for road in &mut network.roads {
+                    road.capacity = 100;
+                }
+                println!("✅ Сценарий: Базовое движение");
                 Ok(())
             }
-            Scenario::IncreasedIntensity(road_id) => {
-                // Увеличение интенсивности на указанной дороге
-                if let Some(_road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
-                    // Увеличиваем spawn rate на въездах, связанных с этой дорогой
-                    for entry in &mut network.entry_points {
-                        if entry.road_id == *road_id {
-                            entry.spawn_rate *= 3.0;
+            Scenario::IncreasedIntensity => {
+                // Увеличение интенсивности в 3 раза
+                for entry in &mut network.entry_points {
+                    entry.spawn_rate = 0.9;
+                }
+                println!("✅ Сценарий: Увеличение интенсивности (поток увеличен в 3 раза)");
+                Ok(())
+            }
+            Scenario::RoadClosure => {
+                // Перекрытие центральной дороги
+                if let Some(road) = network.roads.iter_mut().find(|r| r.id == "road_1") {
+                    road.capacity = 10;
+                    println!("✅ Сценарий: Перекрытие дороги Main Street East");
+                }
+                Ok(())
+            }
+            Scenario::TrafficLightChanges => {
+                // Оптимизация светофоров - меняем фазы
+                for light in &mut network.traffic_lights {
+                    for phase in &mut light.phases {
+                        if phase.road_directions.values().any(|s| *s == LightState::Green) {
+                            phase.duration = 20.0; // Уменьшаем время для оптимизации
                         }
                     }
-                    Ok(())
-                } else {
-                    Err(format!("Road {} not found", road_id))
                 }
-            }
-            Scenario::RoadClosure(road_id) => {
-                // Перекрытие дороги
-                if let Some(_road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
-                    // Устанавливаем capacity в 0 для перекрытия дороги
-                    Ok(())
-                } else {
-                    Err(format!("Road {} not found", road_id))
-                }
-            }
-            Scenario::TrafficLightChanges(intersection_id, new_phases) => {
-                // Изменение режимов работы светофоров
-                if let Some(light) = network.traffic_lights.iter_mut()
-                    .find(|l| l.intersection_id == *intersection_id) {
-                    light.phases = new_phases.clone();
-                    Ok(())
-                } else {
-                    Err(format!("Intersection {} not found", intersection_id))
-                }
+                println!("✅ Сценарий: Оптимизация светофоров");
+                Ok(())
             }
         }
     }
@@ -54,11 +61,8 @@ impl Scenario {
 pub fn get_demo_scenarios() -> Vec<(String, Scenario)> {
     vec![
         ("Базовое движение".to_string(), Scenario::BaseFlow),
-        ("Увеличение интенсивности на главной магистрали".to_string(), 
-         Scenario::IncreasedIntensity("main_road".to_string())),
-        ("Перекрытие аварийного участка".to_string(),
-         Scenario::RoadClosure("accident_site".to_string())),
-        ("Оптимизация работы светофоров".to_string(),
-         Scenario::TrafficLightChanges("central_cross".to_string(), vec![])),
+        ("Увеличение интенсивности".to_string(), Scenario::IncreasedIntensity),
+        ("Перекрытие дороги".to_string(), Scenario::RoadClosure),
+        ("Оптимизация светофоров".to_string(), Scenario::TrafficLightChanges),
     ]
 }

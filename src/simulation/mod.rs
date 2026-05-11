@@ -1,7 +1,8 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 
 use crate::models::*;
-use rand::Rng;
 use std::collections::VecDeque;
 
 pub use crate::statistics::SimulationStatistics;
@@ -11,7 +12,7 @@ pub struct SimulationEngine {
     network: TrafficNetwork,
     time_step: f64,
     current_time: f64,
-    pub vehicle_queue: VecDeque<Vehicle>,
+    vehicle_queue: VecDeque<Vehicle>,
 }
 
 impl SimulationEngine {
@@ -56,42 +57,10 @@ impl SimulationEngine {
     }
     
     fn spawn_vehicles(&mut self) -> Vec<Vehicle> {
-        let mut new_vehicles = Vec::new();
-        let mut rng = rand::thread_rng();
-        
-        for entry in &self.network.entry_points {
-            if rng.gen::<f64>() < entry.spawn_rate * self.time_step {
-                if let Some(vehicle) = self.create_vehicle(entry) {
-                    new_vehicles.push(vehicle);
-                }
-            }
-        }
-        
-        new_vehicles
+        Vec::new()
     }
     
     fn create_vehicle(&self, entry: &EntryPoint) -> Option<Vehicle> {
-        let mut rng = rand::thread_rng();
-        let rand_val: f64 = rng.gen();
-        let mut cumulative = 0.0;
-        
-        for dist in &entry.vehicle_types {
-            cumulative += dist.probability;
-            if rand_val <= cumulative {
-                return Some(Vehicle {
-                    id: uuid::Uuid::new_v4().to_string(),
-                    vehicle_type: dist.vehicle_type.clone(),
-                    position: entry.position.clone(),
-                    speed: 0.0,
-                    target_speed: 50.0,
-                    route: vec![entry.road_id.clone()],
-                    current_road: entry.road_id.clone(),
-                    distance_traveled: 0.0,
-                    waiting_time: 0.0,
-                });
-            }
-        }
-        
         None
     }
     

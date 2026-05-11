@@ -1,9 +1,11 @@
-#![allow(unused_imports)]
 #![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(unused_must_use)]
 
 use wasm_bindgen::prelude::*;
-use std::cell::RefCell;
-use std::rc::Rc;
+use serde::{Serialize, Deserialize};
+use js_sys::Math;
 
 mod models;
 mod simulation;
@@ -11,19 +13,41 @@ mod traffic_network;
 mod statistics;
 mod scenarios;
 
-use simulation::SimulationEngine;
-use models::TrafficNetwork;
+use models::*;
+use traffic_network::TrafficNetwork;
 
-// Глобальное состояние симуляции
-thread_local! {
-    static SIMULATION: Rc<RefCell<Option<SimulationEngine>>> = Rc::new(RefCell::new(None));
-    static NETWORK: Rc<RefCell<Option<TrafficNetwork>>> = Rc::new(RefCell::new(None));
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VehicleData {
+    pub id: u32,
+    pub vehicle_type: String,
+    pub x: f64,
+    pub y: f64,
+    pub progress: f64,
+    pub current_road: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SimulationState {
+    pub vehicles: Vec<VehicleData>,
+    pub total_vehicles: u32,
+    pub current_time: f64,
+    pub simulation_speed: f64,
+    pub is_running: bool,
+    pub is_paused: bool,
+    pub avg_speed: f64,
+    pub throughput: f64,
 }
 
 #[wasm_bindgen]
 pub struct TrafficSimulation {
-    engine: SimulationEngine,
     network: TrafficNetwork,
+    vehicles: Vec<Vehicle>,
+    total_vehicles: u32,
+    current_time: f64,
+    simulation_speed: f64,
+    is_running: bool,
+    is_paused: bool,
+    next_id: u32,
 }
 
 #[wasm_bindgen]
@@ -32,52 +56,164 @@ impl TrafficSimulation {
     pub fn new() -> TrafficSimulation {
         console_error_panic_hook::set_once();
         let network = TrafficNetwork::create_demo_network();
-        let engine = SimulationEngine::new(network.clone());
         
-        TrafficSimulation { engine, network }
+        TrafficSimulation {
+            network,
+            vehicles: Vec::new(),
+            total_vehicles: 0,
+            current_time: 0.0,
+            simulation_speed: 1.0,
+            is_running: false,
+            is_paused: false,
+            next_id: 1,
+        }
     }
     
     pub fn step(&mut self) -> JsValue {
-        let result = self.engine.step();
-        serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
-    }
-    
-    pub fn get_statistics(&self) -> JsValue {
-        let stats = self.engine.get_statistics();
-        serde_wasm_bindgen::to_value(&stats).unwrap_or(JsValue::NULL)
-    }
-    
-    pub fn set_traffic_light_phase(&mut self, light_id: &str, phase: usize) {
-        if let Some(light) = self.network.traffic_lights.iter_mut()
-            .find(|l| l.id == light_id) {
-            light.current_phase = phase;
+        if self.is_running && !self.is_paused {
+            self.current_time += 0.1 * self.simulation_speed;
+            self.update_vehicles();
+            self.spawn_vehicles();
         }
+        
+        let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
+            .map(|v| {
+                let road_name = if v.current_road == "road_1" { "Main Street East" }
+                               else if v.current_road == "road_2" { "Main Street West" }
+                               else { "Cross Street" };
+                VehicleData {
+                    id: v.id.parse().unwrap_or(0),
+                    vehicle_type: format!("{:?}", v.vehicle_type),
+                    x: v.position.x,
+                    y: v.position.y,
+                    progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
+                    current_road: road_name.to_string(),
+                }
+            })
+            .collect();
+        
+        let avg_speed = if !self.vehicles.is_empty() {
+            let total_speed: f64 = self.vehicles.iter().map(|v| v.speed).sum();
+            total_speed / self.vehicles.len() as f64
+        } else { 0.0 };
+        
+        let throughput = if self.current_time > 0.0 {
+            (self.total_vehicles as f64 / self.current_time) * 60.0
+        } else { 0.0 };
+        
+        let state = SimulationState {
+            vehicles: vehicle_data,
+            total_vehicles: self.total_vehicles,
+            current_time: self.current_time,
+            simulation_speed: self.simulation_speed,
+            is_running: self.is_running,
+            is_paused: self.is_paused,
+            avg_speed,
+            throughput,
+        };
+        
+        serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
     }
     
-    pub fn set_spawn_rate(&mut self, entry_id: &str, rate: f64) {
-        if let Some(entry) = self.network.entry_points.iter_mut()
-            .find(|e| e.id == entry_id) {
-            entry.spawn_rate = rate.clamp(0.0, 1.0);
-        }
+    pub fn start(&mut self) {
+        self.is_running = true;
+        self.is_paused = false;
     }
     
-    pub fn load_scenario(&mut self, scenario_name: &str) -> Result<(), JsValue> {
-        let scenarios = scenarios::get_demo_scenarios();
-        if let Some((_, scenario)) = scenarios.into_iter().find(|(name, _)| name == scenario_name) {
-            scenario.apply(&mut self.network).map_err(|e| JsValue::from_str(&e))?;
-            Ok(())
-        } else {
-            Err(JsValue::from_str("Scenario not found"))
-        }
+    pub fn pause(&mut self) {
+        self.is_running = false;
+        self.is_paused = true;
+    }
+    
+    pub fn stop(&mut self) {
+        self.is_running = false;
+        self.is_paused = false;
+        self.reset();
     }
     
     pub fn reset(&mut self) {
+        self.vehicles.clear();
+        self.current_time = 0.0;
+        self.total_vehicles = 0;
+        self.is_running = false;
+        self.is_paused = false;
         self.network = TrafficNetwork::create_demo_network();
-        self.engine = SimulationEngine::new(self.network.clone());
+        self.next_id = 1;
     }
-}
-
-#[wasm_bindgen(start)]
-pub fn start() {
-    console_error_panic_hook::set_once();
+    
+    pub fn set_speed(&mut self, speed: f64) {
+        self.simulation_speed = speed.clamp(0.1, 10.0);
+    }
+    
+    pub fn get_speed(&self) -> f64 {
+        self.simulation_speed
+    }
+    
+    fn update_vehicles(&mut self) {
+        for vehicle in &mut self.vehicles {
+            let step = vehicle.target_speed * self.simulation_speed * 0.1;
+            vehicle.distance_traveled += step;
+            
+            if let Some(road) = self.network.roads.iter().find(|r| r.id == vehicle.current_road) {
+                if vehicle.distance_traveled >= road.length {
+                    if vehicle.route.len() > 1 {
+                        vehicle.current_road = vehicle.route[1].clone();
+                        vehicle.distance_traveled = 0.0;
+                    }
+                }
+                
+                let t = (vehicle.distance_traveled / road.length).min(1.0);
+                vehicle.position.x = road.start.x + (road.end.x - road.start.x) * t;
+                vehicle.position.y = road.start.y + (road.end.y - road.start.y) * t;
+            }
+        }
+        
+        self.vehicles.retain(|v| {
+            if let Some(road) = self.network.roads.iter().find(|r| r.id == v.current_road) {
+                v.distance_traveled < road.length || v.route.len() > 1
+            } else {
+                false
+            }
+        });
+    }
+    
+    fn spawn_vehicles(&mut self) {
+        for entry in &self.network.entry_points {
+            let chance = entry.spawn_rate * self.simulation_speed / 20.0;
+            
+            if Math::random() < chance {
+                let r = Math::random();
+                let vehicle_type = if r < 0.7 {
+                    VehicleType::Car
+                } else if r < 0.9 {
+                    VehicleType::Truck
+                } else {
+                    VehicleType::Bus
+                };
+                
+                let target_speed = match vehicle_type {
+                    VehicleType::Car => 50.0,
+                    VehicleType::Truck => 35.0,
+                    VehicleType::Bus => 30.0,
+                    VehicleType::Emergency => 60.0,
+                };
+                
+                let vehicle = Vehicle {
+                    id: self.next_id.to_string(),
+                    vehicle_type,
+                    position: entry.position.clone(),
+                    speed: target_speed,
+                    target_speed,
+                    route: vec!["road_1".to_string(), "road_2".to_string()],
+                    current_road: entry.road_id.clone(),
+                    distance_traveled: 0.0,
+                    waiting_time: 0.0,
+                };
+                
+                self.vehicles.push(vehicle);
+                self.total_vehicles += 1;
+                self.next_id += 1;
+            }
+        }
+    }
 }

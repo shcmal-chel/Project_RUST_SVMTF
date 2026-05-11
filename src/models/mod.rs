@@ -1,10 +1,9 @@
-#![allow(unused_imports)]
 #![allow(dead_code)]
 
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TrafficNetwork {
     pub roads: Vec<RoadSegment>,
     pub intersections: Vec<Intersection>,
@@ -52,7 +51,7 @@ pub struct LightPhase {
     pub road_directions: HashMap<String, LightState>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]  // Добавлен PartialEq
 pub enum LightState {
     Red,
     Yellow,
@@ -125,10 +124,10 @@ pub struct VehicleTypeDistribution {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CongestionLevel {
-    Free,      // 0-30% capacity
-    Moderate,  // 30-60% capacity
-    Heavy,     // 60-90% capacity
-    Gridlock,  // 90-100% capacity
+    Free,
+    Moderate,
+    Heavy,
+    Gridlock,
 }
 
 impl RoadSegment {

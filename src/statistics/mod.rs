@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Report {
     pub timestamp: String,

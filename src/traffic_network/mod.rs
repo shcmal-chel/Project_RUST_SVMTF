@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 
 pub use crate::models::{
     TrafficNetwork, RoadSegment, Intersection, TrafficLight, EntryPoint, ExitPoint,
@@ -9,10 +11,6 @@ use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::Path;
 use std::collections::HashMap;
-
-// Примечание: Структуры *Data (TrafficNetworkData и т.д.) лучше также вынести в models.rs 
-// или оставить здесь, если они используются только для сериализации в этом модуле.
-// Для чистоты кода я оставлю их здесь, но убедитесь, что они не конфликтуют.
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrafficNetworkData {
@@ -84,236 +82,8 @@ struct ExitPointData {
     road_id: String,
 }
 
-impl TrafficNetwork {
-    pub fn new() -> Self {
-        Self {
-            roads: Vec::new(),
-            intersections: Vec::new(),
-            traffic_lights: Vec::new(),
-            entry_points: Vec::new(),
-            exit_points: Vec::new(),
-        }
-    }
-    
-    // Загрузка сети из файла
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, NetworkLoadError> {
-        let path_ref = path.as_ref();
-        let content = fs::read_to_string(path_ref)?;
-        
-        // Поддержка JSON и YAML форматов
-        let network_data: TrafficNetworkData = if path_ref.extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext == "yaml" || ext == "yml")
-            .unwrap_or(false) 
-        {
-            serde_yaml::from_str(&content)?
-        } else {
-            serde_json::from_str(&content)?
-        };
-        
-        let network = network_data.into_network();
-        Ok(network)
-    }
-    
-    // Сохранение сети в файл
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), NetworkSaveError> {
-        let data = TrafficNetworkData::from_network(self);
-        let content = serde_json::to_string_pretty(&data)?;
-        fs::write(path, content)?;
-        Ok(())
-    }
-    
-    // Создание демонстрационной сети
-    pub fn create_demo_network() -> Self {
-        let mut network = TrafficNetwork::new();
-        
-        // Создаем дороги
-        let road1 = RoadSegment {
-            id: "road_1".to_string(),
-            name: "Main Street East".to_string(),
-            start: Point { x: 10.0, y: 50.0 },
-            end: Point { x: 40.0, y: 50.0 },
-            length: 30.0,
-            lanes: 2,
-            speed_limit: 50.0,
-            capacity: 100,
-            current_vehicles: Vec::new(),
-            road_type: RoadType::Arterial,
-        };
-        
-        let road2 = RoadSegment {
-            id: "road_2".to_string(),
-            name: "Main Street West".to_string(),
-            start: Point { x: 60.0, y: 50.0 },
-            end: Point { x: 90.0, y: 50.0 },
-            length: 30.0,
-            lanes: 2,
-            speed_limit: 50.0,
-            capacity: 100,
-            current_vehicles: Vec::new(),
-            road_type: RoadType::Arterial,
-        };
-        
-        let road3 = RoadSegment {
-            id: "road_3".to_string(),
-            name: "Cross Street North".to_string(),
-            start: Point { x: 50.0, y: 20.0 },
-            end: Point { x: 50.0, y: 80.0 },
-            length: 60.0,
-            lanes: 1,
-            speed_limit: 40.0,
-            capacity: 50,
-            current_vehicles: Vec::new(),
-            road_type: RoadType::Collector,
-        };
-        
-        network.roads.push(road1);
-        network.roads.push(road2);
-        network.roads.push(road3);
-        
-        // Создаем перекресток
-        let intersection = Intersection {
-            id: "cross_1".to_string(),
-            position: Point { x: 50.0, y: 50.0 },
-            roads_connected: vec!["road_1".to_string(), "road_2".to_string(), "road_3".to_string()],
-            traffic_light_id: Some("light_1".to_string()),
-            priority_rules: PriorityRules {
-                main_road: Some("road_1".to_string()),
-                yield_signs: vec!["road_3".to_string()],
-                stop_signs: Vec::new(),
-            },
-        };
-        
-        network.intersections.push(intersection);
-        
-        // Создаем светофор
-        let traffic_light = TrafficLight {
-            id: "light_1".to_string(),
-            intersection_id: "cross_1".to_string(),
-            phases: vec![
-                LightPhase {
-                    duration: 30.0,
-                    road_directions: [
-                        ("road_1".to_string(), LightState::Green),
-                        ("road_2".to_string(), LightState::Green),
-                        ("road_3".to_string(), LightState::Red),
-                    ].iter().cloned().collect(),
-                },
-                LightPhase {
-                    duration: 5.0,
-                    road_directions: [
-                        ("road_1".to_string(), LightState::Yellow),
-                        ("road_2".to_string(), LightState::Yellow),
-                        ("road_3".to_string(), LightState::Red),
-                    ].iter().cloned().collect(),
-                },
-                LightPhase {
-                    duration: 25.0,
-                    road_directions: [
-                        ("road_1".to_string(), LightState::Red),
-                        ("road_2".to_string(), LightState::Red),
-                        ("road_3".to_string(), LightState::Green),
-                    ].iter().cloned().collect(),
-                },
-                LightPhase {
-                    duration: 5.0,
-                    road_directions: [
-                        ("road_1".to_string(), LightState::Red),
-                        ("road_2".to_string(), LightState::Red),
-                        ("road_3".to_string(), LightState::Yellow),
-                    ].iter().cloned().collect(),
-                },
-            ],
-            current_phase: 0,
-            cycle_duration: 65.0,
-            timer: 0.0,
-        };
-        
-        network.traffic_lights.push(traffic_light);
-        
-        // Создаем точки въезда
-        let entry = EntryPoint {
-            id: "entry_1".to_string(),
-            position: Point { x: 10.0, y: 50.0 },
-            road_id: "road_1".to_string(),
-            spawn_rate: 0.3,
-            vehicle_types: vec![
-                VehicleTypeDistribution {
-                    vehicle_type: VehicleType::Car,
-                    probability: 0.7,
-                },
-                VehicleTypeDistribution {
-                    vehicle_type: VehicleType::Truck,
-                    probability: 0.2,
-                },
-                VehicleTypeDistribution {
-                    vehicle_type: VehicleType::Bus,
-                    probability: 0.1,
-                },
-            ],
-        };
-        
-        network.entry_points.push(entry);
-        
-        // Создаем точки выезда
-        let exit = ExitPoint {
-            id: "exit_1".to_string(),
-            position: Point { x: 90.0, y: 50.0 },
-            road_id: "road_2".to_string(),
-        };
-        
-        network.exit_points.push(exit);
-        
-        network
-    }
-    
-    pub fn spawn_vehicle(&self) -> Option<Vehicle> {
-        if let Some(entry) = self.entry_points.first() {
-            let vehicle_type = Self::select_vehicle_type(&entry.vehicle_types);
-            
-            Some(Vehicle {
-                id: uuid::Uuid::new_v4().to_string(),
-                vehicle_type,
-                position: entry.position.clone(),
-                speed: 0.0,
-                target_speed: 50.0,
-                route: vec![entry.road_id.clone()],
-                current_road: entry.road_id.clone(),
-                distance_traveled: 0.0,
-                waiting_time: 0.0,
-            })
-        } else {
-            None
-        }
-    }
-    
-    fn select_vehicle_type(distributions: &[VehicleTypeDistribution]) -> VehicleType {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let rand_val: f64 = rng.gen();
-        let mut cumulative = 0.0;
-        
-        for dist in distributions {
-            cumulative += dist.probability;
-            if rand_val <= cumulative {
-                return dist.vehicle_type.clone();
-            }
-        }
-        
-        VehicleType::Car
-    }
-    
-    pub fn update_congestion(&mut self) {
-        for road in &mut self.roads {
-            let congestion = road.current_vehicles.len() as f64 / road.capacity as f64;
-            if congestion > 0.8 {
-                // Логика замедления
-            }
-        }
-    }
-}
+// ========== РЕАЛИЗАЦИЯ КОНВЕРТАЦИИ ==========
 
-// Реализация конвертации для Data структур
 impl TrafficNetworkData {
     fn into_network(self) -> TrafficNetwork {
         let roads: Vec<RoadSegment> = self.roads.into_iter().map(|r| RoadSegment {
@@ -505,6 +275,203 @@ impl TrafficNetworkData {
         }
     }
 }
+
+// ========== ОСНОВНАЯ РЕАЛИЗАЦИЯ TRAFFICNETWORK ==========
+
+impl TrafficNetwork {
+    pub fn new() -> Self {
+        Self {
+            roads: Vec::new(),
+            intersections: Vec::new(),
+            traffic_lights: Vec::new(),
+            entry_points: Vec::new(),
+            exit_points: Vec::new(),
+        }
+    }
+    
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, NetworkLoadError> {
+        let path_ref = path.as_ref();
+        let content = fs::read_to_string(path_ref)?;
+        
+        let network_data: TrafficNetworkData = if path_ref.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext == "yaml" || ext == "yml")
+            .unwrap_or(false) 
+        {
+            serde_yaml::from_str(&content)?
+        } else {
+            serde_json::from_str(&content)?
+        };
+        
+        let network = network_data.into_network();
+        Ok(network)
+    }
+    
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), NetworkSaveError> {
+        let data = TrafficNetworkData::from_network(self);
+        let content = serde_json::to_string_pretty(&data)?;
+        fs::write(path, content)?;
+        Ok(())
+    }
+    
+    pub fn create_demo_network() -> Self {
+        let mut network = TrafficNetwork::new();
+        
+        let road1 = RoadSegment {
+            id: "road_1".to_string(),
+            name: "Main St East".to_string(),
+            start: Point { x: 10.0, y: 50.0 },
+            end: Point { x: 48.0, y: 50.0 },
+            length: 38.0,
+            lanes: 2,
+            speed_limit: 50.0,
+            capacity: 100,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Arterial,
+        };
+        
+        let road2 = RoadSegment {
+            id: "road_2".to_string(),
+            name: "Main St West".to_string(),
+            start: Point { x: 52.0, y: 50.0 },
+            end: Point { x: 90.0, y: 50.0 },
+            length: 38.0,
+            lanes: 2,
+            speed_limit: 50.0,
+            capacity: 100,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Arterial,
+        };
+        
+        let road3 = RoadSegment {
+            id: "road_3".to_string(),
+            name: "Cross St".to_string(),
+            start: Point { x: 50.0, y: 10.0 },
+            end: Point { x: 50.0, y: 90.0 },
+            length: 80.0,
+            lanes: 1,
+            speed_limit: 40.0,
+            capacity: 50,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Collector,
+        };
+        
+        network.roads.push(road1);
+        network.roads.push(road2);
+        network.roads.push(road3);
+        
+        let intersection = Intersection {
+            id: "cross_1".to_string(),
+            position: Point { x: 50.0, y: 50.0 },
+            roads_connected: vec!["road_1".to_string(), "road_2".to_string(), "road_3".to_string()],
+            traffic_light_id: Some("light_1".to_string()),
+            priority_rules: PriorityRules {
+                main_road: Some("road_1".to_string()),
+                yield_signs: vec!["road_3".to_string()],
+                stop_signs: Vec::new(),
+            },
+        };
+        
+        network.intersections.push(intersection);
+        
+        let traffic_light = TrafficLight {
+            id: "light_1".to_string(),
+            intersection_id: "cross_1".to_string(),
+            phases: vec![
+                LightPhase {
+                    duration: 30.0,
+                    road_directions: [
+                        ("road_1".to_string(), LightState::Green),
+                        ("road_2".to_string(), LightState::Green),
+                        ("road_3".to_string(), LightState::Red),
+                    ].iter().cloned().collect(),
+                },
+                LightPhase {
+                    duration: 5.0,
+                    road_directions: [
+                        ("road_1".to_string(), LightState::Yellow),
+                        ("road_2".to_string(), LightState::Yellow),
+                        ("road_3".to_string(), LightState::Red),
+                    ].iter().cloned().collect(),
+                },
+                LightPhase {
+                    duration: 25.0,
+                    road_directions: [
+                        ("road_1".to_string(), LightState::Red),
+                        ("road_2".to_string(), LightState::Red),
+                        ("road_3".to_string(), LightState::Green),
+                    ].iter().cloned().collect(),
+                },
+                LightPhase {
+                    duration: 5.0,
+                    road_directions: [
+                        ("road_1".to_string(), LightState::Red),
+                        ("road_2".to_string(), LightState::Red),
+                        ("road_3".to_string(), LightState::Yellow),
+                    ].iter().cloned().collect(),
+                },
+            ],
+            current_phase: 0,
+            cycle_duration: 65.0,
+            timer: 0.0,
+        };
+        
+        network.traffic_lights.push(traffic_light);
+        
+        let entry = EntryPoint {
+            id: "entry_1".to_string(),
+            position: Point { x: 10.0, y: 50.0 },
+            road_id: "road_1".to_string(),
+            spawn_rate: 0.3,
+            vehicle_types: vec![
+                VehicleTypeDistribution { vehicle_type: VehicleType::Car, probability: 0.7 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Truck, probability: 0.2 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Bus, probability: 0.1 },
+            ],
+        };
+        
+        network.entry_points.push(entry);
+        
+        let exit = ExitPoint {
+            id: "exit_1".to_string(),
+            position: Point { x: 90.0, y: 50.0 },
+            road_id: "road_2".to_string(),
+        };
+        
+        network.exit_points.push(exit);
+        
+        network
+    }
+    
+    pub fn spawn_vehicle(&self) -> Option<Vehicle> {
+        if let Some(entry) = self.entry_points.first() {
+            let vehicle_type = VehicleType::Car;
+            let target_speed = 50.0;
+            
+            Some(Vehicle {
+                id: format!("car_{}", chrono::Local::now().timestamp_millis()),
+                vehicle_type,
+                position: entry.position.clone(),
+                speed: target_speed,
+                target_speed,
+                route: vec!["road_1".to_string(), "road_2".to_string()],
+                current_road: entry.road_id.clone(),
+                distance_traveled: 0.0,
+                waiting_time: 0.0,
+            })
+        } else {
+            None
+        }
+    }
+    
+    pub fn update_congestion(&mut self) {
+        for road in &mut self.roads {
+            let _congestion = road.current_vehicles.len() as f64 / road.capacity as f64;
+        }
+    }
+}
+
+// ========== ОШИБКИ ==========
 
 #[derive(Debug, thiserror::Error)]
 pub enum NetworkLoadError {
