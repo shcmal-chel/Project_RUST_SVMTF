@@ -1,0 +1,52 @@
+[package]
+name = "traffic_simulation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# GUI framework (выберите один вариант)
+# Вариант 1: egui (простой, легковесный)
+egui = "0.24"
+eframe = "0.24"
+egui_plot = "0.24"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["console", "Document", "Element", "HtmlElement", "Window"] }
+js-sys = "0.3"
+uuid = { version = "1.0", features = ["v4"] }
+
+# Вариант 2: для CLI с визуализацией через терминал
+ratatui = "0.24"
+crossterm = "0.27"
+
+# Сериализация для загрузки/сохранения моделей
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Работа с временем
+chrono = "0.4"
+
+# Случайные числа для генерации трафика
+rand = "0.8"
+
+# Логирование
+log = "0.4"
+env_logger = "0.10"
+
+# Обработка ошибок
+thiserror = "1.0"
+anyhow = "1.0"
+
+# UI для нативного desktop (альтернативный вариант)
+# iced = "0.10"
+# slint = "1.3"
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[[bin]]
+name = "traffic_sim"
+path = "src/main.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

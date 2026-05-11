@@ -1,0 +1,149 @@
+use crate::models::*;
+use rand::Rng;
+use std::collections::VecDeque;
+
+pub struct SimulationEngine {
+    network: TrafficNetwork,
+    time_step: f64,
+    current_time: f64,
+    vehicle_queue: VecDeque<Vehicle>,
+}
+
+impl SimulationEngine {
+    pub fn new(network: TrafficNetwork) -> Self {
+        Self {
+            network,
+            time_step: 0.1,
+            current_time: 0.0,
+            vehicle_queue: VecDeque::new(),
+        }
+    }
+    
+    pub fn step(&mut self) -> SimulationResult {
+        self.current_time += self.time_step;
+        
+        // Обновление светофоров
+        self.update_traffic_lights();
+        
+        // Обновление позиций транспортных средств
+        let updates = self.update_vehicle_positions();
+        
+        // Генерация новых транспортных средств
+        let new_vehicles = self.spawn_vehicles();
+        
+        // Обработка столкновений и конфликтов
+        let conflicts = self.resolve_conflicts();
+        
+        SimulationResult {
+            time: self.current_time,
+            vehicle_updates: updates,
+            new_vehicles,
+            conflicts,
+            statistics: self.calculate_statistics(),
+        }
+    }
+    
+    fn update_traffic_lights(&mut self) {
+        for light in &mut self.network.traffic_lights {
+            light.timer += self.time_step;
+            if light.timer >= light.phases[light.current_phase].duration {
+                light.timer = 0.0;
+                light.current_phase = (light.current_phase + 1) % light.phases.len();
+            }
+        }
+    }
+    
+    fn update_vehicle_positions(&mut self) -> Vec<VehicleUpdate> {
+        let mut updates = Vec::new();
+        // Логика обновления позиций
+        updates
+    }
+    
+    fn spawn_vehicles(&mut self) -> Vec<Vehicle> {
+        let mut new_vehicles = Vec::new();
+        let mut rng = rand::thread_rng();
+        
+        for entry in &self.network.entry_points {
+            if rng.gen::<f64>() < entry.spawn_rate * self.time_step {
+                if let Some(vehicle) = self.create_vehicle(entry) {
+                    new_vehicles.push(vehicle);
+                }
+            }
+        }
+        
+        new_vehicles
+    }
+    
+    fn create_vehicle(&self, entry: &EntryPoint) -> Option<Vehicle> {
+        // Создание транспортного средства с учетом распределения типов
+        let mut rng = rand::thread_rng();
+        let rand_val: f64 = rng.gen();
+        let mut cumulative = 0.0;
+        
+        for dist in &entry.vehicle_types {
+            cumulative += dist.probability;
+            if rand_val <= cumulative {
+                return Some(Vehicle {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    vehicle_type: dist.vehicle_type.clone(),
+                    position: entry.position.clone(),
+                    speed: 0.0,
+                    target_speed: 50.0,
+                    route: vec![entry.road_id.clone()],
+                    current_road: entry.road_id.clone(),
+                    distance_traveled: 0.0,
+                    waiting_time: 0.0,
+                });
+            }
+        }
+        
+        None
+    }
+    
+    fn resolve_conflicts(&self) -> Vec<Conflict> {
+        // Логика разрешения конфликтов на перекрестках
+        Vec::new()
+    }
+    
+    fn calculate_statistics(&self) -> SimulationStatistics {
+        SimulationStatistics::default()
+    }
+}
+
+pub struct SimulationResult {
+    pub time: f64,
+    pub vehicle_updates: Vec<VehicleUpdate>,
+    pub new_vehicles: Vec<Vehicle>,
+    pub conflicts: Vec<Conflict>,
+    pub statistics: SimulationStatistics,
+}
+
+pub struct VehicleUpdate {
+    pub vehicle_id: String,
+    pub new_position: Point,
+    pub new_speed: f64,
+    pub current_road: String,
+}
+
+pub struct Conflict {
+    pub location: Point,
+    pub vehicles_involved: Vec<String>,
+    pub conflict_type: ConflictType,
+}
+
+pub enum ConflictType {
+    Collision,
+    NearMiss,
+    TrafficViolation,
+}
+
+#[derive(Default)]
+pub struct SimulationStatistics {
+    pub total_vehicles_processed: u64,
+    pub average_travel_time: f64,
+    pub average_speed: f64,
+    pub max_congestion: f64,
+    pub average_wait_time: f64,
+    pub throughput: f64,
+    pub most_congested_roads: Vec<(String, f64)>,
+}
