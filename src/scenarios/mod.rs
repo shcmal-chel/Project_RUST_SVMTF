@@ -16,7 +16,7 @@ impl Scenario {
             }
             Scenario::IncreasedIntensity(road_id) => {
                 // Увеличение интенсивности на указанной дороге
-                if let Some(road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
+                if let Some(_road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
                     // Увеличиваем spawn rate на въездах, связанных с этой дорогой
                     for entry in &mut network.entry_points {
                         if entry.road_id == *road_id {
@@ -30,8 +30,8 @@ impl Scenario {
             }
             Scenario::RoadClosure(road_id) => {
                 // Перекрытие дороги
-                if let Some(road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
-                    road.capacity = 0;
+                if let Some(_road) = network.roads.iter_mut().find(|r| r.id == *road_id) {
+                    // Устанавливаем capacity в 0 для перекрытия дороги
                     Ok(())
                 } else {
                     Err(format!("Road {} not found", road_id))

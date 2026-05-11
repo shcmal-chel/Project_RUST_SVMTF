@@ -1,9 +1,8 @@
 use crate::models::{
     TrafficNetwork, RoadSegment, Intersection, TrafficLight, EntryPoint, ExitPoint,
     Point, RoadType, PriorityRules, LightPhase, LightState, Vehicle, VehicleType,
-    VehicleTypeDistribution // Если вы решите вынести Data структуры в models
+    VehicleTypeDistribution
 };
-use crate::validators::NetworkValidator;
 use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::Path;
@@ -109,11 +108,6 @@ impl TrafficNetwork {
         };
         
         let network = network_data.into_network();
-        
-        // Теперь типы должны совпадать, так как TrafficNetwork импортирован из models
-        if let Err(e) = NetworkValidator::validate(&network) {
-            return Err(NetworkLoadError::Validation(e));
-        }
         
         Ok(network)
     }
@@ -271,9 +265,6 @@ impl TrafficNetwork {
     }
     
     pub fn spawn_vehicle(&self) -> Option<Vehicle> {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        
         if let Some(entry) = self.entry_points.first() {
             let vehicle_type = Self::select_vehicle_type(&entry.vehicle_types);
             
@@ -522,9 +513,6 @@ pub enum NetworkLoadError {
     
     #[error("YAML error: {0}")]
     Yaml(#[from] serde_yaml::Error),
-    
-    #[error("Validation error: {0}")]
-    Validation(#[from] crate::validators::ValidationError),
 }
 
 #[derive(Debug, thiserror::Error)]

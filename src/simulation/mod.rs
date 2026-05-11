@@ -3,6 +3,7 @@ use rand::Rng;
 use std::collections::VecDeque;
 
 pub use crate::statistics::SimulationStatistics;
+use serde::{Serialize, Deserialize};
 
 pub struct SimulationEngine {
     network: TrafficNetwork,
@@ -56,9 +57,8 @@ impl SimulationEngine {
     }
     
     fn update_vehicle_positions(&mut self) -> Vec<VehicleUpdate> {
-        let mut updates = Vec::new();
         // Логика обновления позиций
-        updates
+        Vec::new()
     }
     
     fn spawn_vehicles(&mut self) -> Vec<Vehicle> {
@@ -111,11 +111,12 @@ impl SimulationEngine {
         crate::statistics::SimulationStatistics::default()
     }
 
-    pub fn get_statistics(&self) -> crate::statistics::SimulationStatistics {
+    pub fn get_statistics(&self) -> SimulationStatistics {
         self.calculate_statistics()
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SimulationResult {
     pub time: f64,
     pub vehicle_updates: Vec<VehicleUpdate>,
@@ -139,6 +140,7 @@ pub struct Conflict {
     pub conflict_type: ConflictType,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConflictType {
     Collision,
     NearMiss,
