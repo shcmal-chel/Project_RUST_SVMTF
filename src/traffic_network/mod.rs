@@ -1,4 +1,6 @@
-use crate::models::{
+#![allow(dead_code)]
+
+pub use crate::models::{
     TrafficNetwork, RoadSegment, Intersection, TrafficLight, EntryPoint, ExitPoint,
     Point, RoadType, PriorityRules, LightPhase, LightState, Vehicle, VehicleType,
     VehicleTypeDistribution
@@ -95,9 +97,11 @@ impl TrafficNetwork {
     
     // Загрузка сети из файла
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, NetworkLoadError> {
-        let content = fs::read_to_string(path)?;
+        let path_ref = path.as_ref();
+        let content = fs::read_to_string(path_ref)?;
         
-        let network_data: TrafficNetworkData = if path.as_ref().extension()
+        // Поддержка JSON и YAML форматов
+        let network_data: TrafficNetworkData = if path_ref.extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext == "yaml" || ext == "yml")
             .unwrap_or(false) 
@@ -108,7 +112,6 @@ impl TrafficNetwork {
         };
         
         let network = network_data.into_network();
-        
         Ok(network)
     }
     

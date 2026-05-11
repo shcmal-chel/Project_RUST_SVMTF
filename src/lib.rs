@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use wasm_bindgen::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -7,10 +10,9 @@ mod simulation;
 mod traffic_network;
 mod statistics;
 mod scenarios;
-mod validators;
 
-use models::*;
-use simulation::*;
+use simulation::SimulationEngine;
+use models::TrafficNetwork;
 
 // Глобальное состояние симуляции
 thread_local! {
@@ -45,10 +47,6 @@ impl TrafficSimulation {
         serde_wasm_bindgen::to_value(&stats).unwrap_or(JsValue::NULL)
     }
     
-    pub fn calculate_statistics(&self) -> crate::statistics::SimulationStatistics {
-        self.engine.get_statistics()
-    }
-    
     pub fn set_traffic_light_phase(&mut self, light_id: &str, phase: usize) {
         if let Some(light) = self.network.traffic_lights.iter_mut()
             .find(|l| l.id == light_id) {
@@ -80,6 +78,6 @@ impl TrafficSimulation {
 }
 
 #[wasm_bindgen(start)]
-pub fn main() {
+pub fn start() {
     console_error_panic_hook::set_once();
 }

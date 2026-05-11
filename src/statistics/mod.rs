@@ -71,7 +71,7 @@ impl Report {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]  // Добавлены Serialize, Deserialize
 pub struct SimulationStatistics {
     pub total_vehicles: u32,
     pub average_speed: f64,

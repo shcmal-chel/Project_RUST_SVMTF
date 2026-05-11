@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::models::*;
 use rand::Rng;
 use std::collections::VecDeque;
@@ -9,7 +11,7 @@ pub struct SimulationEngine {
     network: TrafficNetwork,
     time_step: f64,
     current_time: f64,
-    vehicle_queue: VecDeque<Vehicle>,
+    pub vehicle_queue: VecDeque<Vehicle>,
 }
 
 impl SimulationEngine {
@@ -25,16 +27,9 @@ impl SimulationEngine {
     pub fn step(&mut self) -> SimulationResult {
         self.current_time += self.time_step;
         
-        // Обновление светофоров
         self.update_traffic_lights();
-        
-        // Обновление позиций транспортных средств
         let updates = self.update_vehicle_positions();
-        
-        // Генерация новых транспортных средств
         let new_vehicles = self.spawn_vehicles();
-        
-        // Обработка столкновений и конфликтов
         let conflicts = self.resolve_conflicts();
         
         SimulationResult {
@@ -57,7 +52,6 @@ impl SimulationEngine {
     }
     
     fn update_vehicle_positions(&mut self) -> Vec<VehicleUpdate> {
-        // Логика обновления позиций
         Vec::new()
     }
     
@@ -77,7 +71,6 @@ impl SimulationEngine {
     }
     
     fn create_vehicle(&self, entry: &EntryPoint) -> Option<Vehicle> {
-        // Создание транспортного средства с учетом распределения типов
         let mut rng = rand::thread_rng();
         let rand_val: f64 = rng.gen();
         let mut cumulative = 0.0;
@@ -103,7 +96,6 @@ impl SimulationEngine {
     }
     
     fn resolve_conflicts(&self) -> Vec<Conflict> {
-        // Логика разрешения конфликтов на перекрестках
         Vec::new()
     }
 
