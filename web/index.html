@@ -4,19 +4,154 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Транспортный симулятор</title>
-    <link rel="stylesheet" href="css/style.css">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #eee;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { text-align: center; color: #00d4ff; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 14px; }
+        
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+        
+        .panel {
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            color: #00d4ff;
+            font-size: 1.2em;
+            border-bottom: 2px solid #00d4ff;
+            display: inline-block;
+            padding-bottom: 5px;
+        }
+        
+        canvas {
+            background: #0a0a1a;
+            border-radius: 10px;
+            display: block;
+            width: 100%;
+            height: auto;
+            border: 2px solid #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,212,255,0.3); }
+        .btn-danger { background: linear-gradient(135deg, #ff4757 0%, #cc0033 100%); }
+        .btn-warning { background: linear-gradient(135deg, #ffa502 0%, #cc7b00 100%); }
+        .btn-secondary { background: linear-gradient(135deg, #6c5ce7 0%, #4834d4 100%); }
+        .btn-small { padding: 5px 12px; font-size: 14px; }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.3);
+            padding: 0 12px;
+            border-radius: 20px;
+        }
+        .speed-value { font-weight: bold; color: #00d4ff; min-width: 50px; text-align: center; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-label { font-size: 11px; color: #888; }
+        .stat-value { font-size: 20px; font-weight: bold; color: #00d4ff; }
+        
+        .vehicle-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .vehicle-item {
+            background: rgba(0,212,255,0.1);
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .progress-bar {
+            background: #333;
+            border-radius: 10px;
+            height: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress-fill { background: #00d4ff; height: 100%; transition: width 0.3s; }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.running { background: rgba(0,255,0,0.2); border: 1px solid #0f0; color: #0f0; }
+        .status.paused { background: rgba(255,255,0,0.2); border: 1px solid #ff0; color: #ff0; }
+        .status.stopped { background: rgba(255,0,0,0.2); border: 1px solid #f00; color: #f00; }
+        
+        .map-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .scenario-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+        .scenario-btn { background: rgba(0,212,255,0.2); font-size: 12px; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 3px; }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>🚦 Система моделирования транспортных потоков</h1>
-        <div class="subtitle">Визуализация дорожной сети и движения транспорта</div>
+        <div class="subtitle">Визуализация дорожной сети с цветовой индикацией загрузки</div>
         
         <div class="main-grid">
             <div class="panel">
                 <h2>🗺 Дорожная сеть</h2>
-                <canvas id="roadCanvas" width="600" height="500"></canvas>
+                <canvas id="roadCanvas" width="700" height="500"></canvas>
+                
                 <div class="controls">
-                    <button id="startBtn" class="btn-primary">▶ Старт</button>
+                    <button id="startBtn">▶ Старт</button>
                     <button id="pauseBtn" class="btn-warning">⏸ Пауза</button>
                     <button id="stopBtn" class="btn-danger">⏹ Стоп</button>
                     <button id="resetBtn" class="btn-secondary">🔄 Сброс</button>
@@ -26,53 +161,54 @@
                         <button id="speedUpBtn" class="btn-small">+</button>
                     </div>
                 </div>
+                
+                <div class="map-controls">
+                    <span style="color:#888; font-size:12px;">🗺 Карта:</span>
+                    <button id="zoomInBtn" class="btn-small">🔍 +</button>
+                    <button id="zoomOutBtn" class="btn-small">🔍 -</button>
+                    <button id="moveLeftBtn" class="btn-small">◀</button>
+                    <button id="moveRightBtn" class="btn-small">▶</button>
+                    <button id="moveUpBtn" class="btn-small">▲</button>
+                    <button id="moveDownBtn" class="btn-small">▼</button>
+                </div>
+                
                 <div class="scenario-buttons">
-                    <button class="scenario-btn" data-scenario="0">📊 Базовое движение</button>
-                    <button class="scenario-btn" data-scenario="1">📈 Увеличение интенсивности</button>
-                    <button class="scenario-btn" data-scenario="2">🚧 Перекрытие дороги</button>
-                    <button class="scenario-btn" data-scenario="3">🚦 Оптимизация светофоров</button>
+                    <button id="scenario1Btn" class="scenario-btn">📊 Базовое движение</button>
+                    <button id="scenario2Btn" class="scenario-btn">📈 Увеличение интенсивности</button>
+                    <button id="scenario3Btn" class="scenario-btn">🚧 Перекрытие дороги</button>
+                    <button id="scenario4Btn" class="scenario-btn">🚦 Оптимизация светофоров</button>
                 </div>
             </div>
             
             <div class="panel">
                 <h2>📊 Статистика</h2>
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Всего создано ТС</div>
-                        <div class="stat-value" id="totalVehicles">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Активных ТС</div>
-                        <div class="stat-value" id="activeVehicles">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Средняя скорость</div>
-                        <div class="stat-value" id="avgSpeed">0 км/ч</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Пропускная способность</div>
-                        <div class="stat-value" id="throughput">0/мин</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Время симуляции</div>
-                        <div class="stat-value" id="simTime">0 с</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Скорость симуляции</div>
-                        <div class="stat-value" id="simSpeed">1x</div>
-                    </div>
+                    <div class="stat-card"><div class="stat-label">Всего создано ТС</div><div class="stat-value" id="totalVehicles">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Активных ТС</div><div class="stat-value" id="activeVehicles">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Средняя скорость</div><div class="stat-value" id="avgSpeed">0 км/ч</div></div>
+                    <div class="stat-card"><div class="stat-label">Пропускная способность</div><div class="stat-value" id="throughput">0/мин</div></div>
+                    <div class="stat-card"><div class="stat-label">Время симуляции</div><div class="stat-value" id="simTime">0 с</div></div>
+                    <div class="stat-card"><div class="stat-label">Скорость</div><div class="stat-value" id="simSpeed">1x</div></div>
                 </div>
                 
-                <h2 style="margin-top: 20px;">🚗 Транспортные средства</h2>
+                <h2>🚗 Транспортные средства</h2>
                 <div class="vehicle-list" id="vehicleList">
-                    <div style="text-align: center; color: #888;">Нет активных ТС</div>
+                    <div class="vehicle-item">Нет активных ТС</div>
+                </div>
+                
+                <div class="controls">
+                    <button id="reportBtn" class="btn-secondary">📄 Сохранить отчет</button>
+                    <button id="clearStatsBtn" class="btn-danger">🗑 Очистить статистику</button>
                 </div>
                 
                 <div class="status stopped" id="status">⏹ ОСТАНОВЛЕНА</div>
+                <div style="margin-top: 10px; font-size: 12px; color: #888; text-align: center;">
+                    <span>Сценарий: <strong id="scenarioName">Базовое движение</strong></span>
+                </div>
             </div>
         </div>
     </div>
     
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,16 +1,9 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_must_use)]
-
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
 use js_sys::Math;
 
 mod models;
-mod simulation;
 mod traffic_network;
-mod statistics;
 mod scenarios;
 
 use models::*;
@@ -24,11 +17,21 @@ pub struct VehicleData {
     pub y: f64,
     pub progress: f64,
     pub current_road: String,
+    pub speed: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RoadData {
+    pub id: String,
+    pub name: String,
+    pub congestion: f64,
+    pub color: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SimulationState {
     pub vehicles: Vec<VehicleData>,
+    pub roads: Vec<RoadData>,
     pub total_vehicles: u32,
     pub current_time: f64,
     pub simulation_speed: f64,
@@ -36,6 +39,10 @@ pub struct SimulationState {
     pub is_paused: bool,
     pub avg_speed: f64,
     pub throughput: f64,
+    pub zoom: f64,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub scenario_name: String,
 }
 
 #[wasm_bindgen]
@@ -48,6 +55,10 @@ pub struct TrafficSimulation {
     is_running: bool,
     is_paused: bool,
     next_id: u32,
+    zoom: f64,
+    offset_x: f64,
+    offset_y: f64,
+    scenario_name: String,
 }
 
 #[wasm_bindgen]
@@ -62,56 +73,25 @@ impl TrafficSimulation {
             vehicles: Vec::new(),
             total_vehicles: 0,
             current_time: 0.0,
-            simulation_speed: 1.0,
+            simulation_speed: 0.5,
             is_running: false,
             is_paused: false,
             next_id: 1,
+            zoom: 1.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            scenario_name: "Базовое движение".to_string(),
         }
     }
     
     pub fn step(&mut self) -> JsValue {
         if self.is_running && !self.is_paused {
-            self.current_time += 0.1 * self.simulation_speed;
+            self.current_time += 0.05 * self.simulation_speed;
             self.update_vehicles();
             self.spawn_vehicles();
         }
         
-        let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
-            .map(|v| {
-                let road_name = if v.current_road == "road_1" { "Main Street East" }
-                               else if v.current_road == "road_2" { "Main Street West" }
-                               else { "Cross Street" };
-                VehicleData {
-                    id: v.id.parse().unwrap_or(0),
-                    vehicle_type: format!("{:?}", v.vehicle_type),
-                    x: v.position.x,
-                    y: v.position.y,
-                    progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
-                    current_road: road_name.to_string(),
-                }
-            })
-            .collect();
-        
-        let avg_speed = if !self.vehicles.is_empty() {
-            let total_speed: f64 = self.vehicles.iter().map(|v| v.speed).sum();
-            total_speed / self.vehicles.len() as f64
-        } else { 0.0 };
-        
-        let throughput = if self.current_time > 0.0 {
-            (self.total_vehicles as f64 / self.current_time) * 60.0
-        } else { 0.0 };
-        
-        let state = SimulationState {
-            vehicles: vehicle_data,
-            total_vehicles: self.total_vehicles,
-            current_time: self.current_time,
-            simulation_speed: self.simulation_speed,
-            is_running: self.is_running,
-            is_paused: self.is_paused,
-            avg_speed,
-            throughput,
-        };
-        
+        let state = self.get_state();
         serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
     }
     
@@ -128,7 +108,11 @@ impl TrafficSimulation {
     pub fn stop(&mut self) {
         self.is_running = false;
         self.is_paused = false;
-        self.reset();
+        self.vehicles.clear();
+        self.current_time = 0.0;
+        self.total_vehicles = 0;
+        self.network = TrafficNetwork::create_demo_network();
+        self.next_id = 1;
     }
     
     pub fn reset(&mut self) {
@@ -139,19 +123,126 @@ impl TrafficSimulation {
         self.is_paused = false;
         self.network = TrafficNetwork::create_demo_network();
         self.next_id = 1;
+        self.simulation_speed = 0.5;
+        self.zoom = 1.0;
+        self.offset_x = 0.0;
+        self.offset_y = 0.0;
+        self.scenario_name = "Базовое движение".to_string();
     }
     
     pub fn set_speed(&mut self, speed: f64) {
-        self.simulation_speed = speed.clamp(0.1, 10.0);
+        self.simulation_speed = speed.clamp(0.1, 5.0);
     }
     
     pub fn get_speed(&self) -> f64 {
         self.simulation_speed
     }
     
+    pub fn zoom_in(&mut self) {
+        self.zoom = (self.zoom * 1.2).min(3.0);
+    }
+    
+    pub fn zoom_out(&mut self) {
+        self.zoom = (self.zoom / 1.2).max(0.5);
+    }
+    
+    pub fn move_left(&mut self) {
+        self.offset_x += 20.0;
+    }
+    
+    pub fn move_right(&mut self) {
+        self.offset_x -= 20.0;
+    }
+    
+    pub fn move_up(&mut self) {
+        self.offset_y += 20.0;
+    }
+    
+    pub fn move_down(&mut self) {
+        self.offset_y -= 20.0;
+    }
+    
+    pub fn load_scenario(&mut self, index: usize) {
+        let scenarios = scenarios::get_demo_scenarios();
+        if let Some((name, scenario)) = scenarios.get(index) {
+            let mut new_network = TrafficNetwork::create_demo_network();
+            if let Ok(()) = scenario.apply(&mut new_network) {
+                self.network = new_network;
+                self.scenario_name = name.clone();
+                self.reset();
+            }
+        }
+    }
+    
+    pub fn get_scenario_name(&self) -> String {
+        self.scenario_name.clone()
+    }
+    
+    fn get_state(&self) -> SimulationState {
+        let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
+            .map(|v| {
+                let road_name = if v.current_road == "road_1" { "Main Street East" }
+                               else if v.current_road == "road_2" { "Main Street West" }
+                               else { "Cross Street" };
+                VehicleData {
+                    id: v.id.parse().unwrap_or(0),
+                    vehicle_type: format!("{:?}", v.vehicle_type),
+                    x: v.position.x,
+                    y: v.position.y,
+                    progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
+                    current_road: road_name.to_string(),
+                    speed: v.speed,
+                }
+            })
+            .collect();
+        
+        let road_data: Vec<RoadData> = self.network.roads.iter()
+            .map(|r| {
+                let vehicle_count = self.vehicles.iter()
+                    .filter(|v| v.current_road == r.id)
+                    .count();
+                let congestion = (vehicle_count as f64 / r.capacity as f64) * 100.0;
+                let color = if congestion < 30.0 { "green" }
+                           else if congestion < 60.0 { "yellow" }
+                           else { "red" };
+                RoadData {
+                    id: r.id.clone(),
+                    name: r.name.clone(),
+                    congestion,
+                    color: color.to_string(),
+                }
+            })
+            .collect();
+        
+        let avg_speed = if !self.vehicles.is_empty() {
+            let total_speed: f64 = self.vehicles.iter().map(|v| v.speed).sum();
+            total_speed / self.vehicles.len() as f64
+        } else { 0.0 };
+        
+        let throughput = if self.current_time > 0.0 {
+            (self.total_vehicles as f64 / self.current_time) * 60.0
+        } else { 0.0 };
+        
+        SimulationState {
+            vehicles: vehicle_data,
+            roads: road_data,
+            total_vehicles: self.total_vehicles,
+            current_time: self.current_time,
+            simulation_speed: self.simulation_speed,
+            is_running: self.is_running,
+            is_paused: self.is_paused,
+            avg_speed,
+            throughput,
+            zoom: self.zoom,
+            offset_x: self.offset_x,
+            offset_y: self.offset_y,
+            scenario_name: self.scenario_name.clone(),
+        }
+    }
+    
     fn update_vehicles(&mut self) {
         for vehicle in &mut self.vehicles {
-            let step = vehicle.target_speed * self.simulation_speed * 0.1;
+            let step = vehicle.target_speed * self.simulation_speed * 0.05;
             vehicle.distance_traveled += step;
             
             if let Some(road) = self.network.roads.iter().find(|r| r.id == vehicle.current_road) {
