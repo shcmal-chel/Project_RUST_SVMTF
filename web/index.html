@@ -1,214 +1,422 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Транспортный симулятор</title>
     <style>
-        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            margin: 0;
+            font-family: Arial;
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
             padding: 20px;
-            min-height: 100vh;
-            color: #eee;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 { text-align: center; color: #00d4ff; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 14px; }
-        
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-        
-        .panel {
-            background: rgba(0,0,0,0.5);
-            border-radius: 15px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .panel h2 {
-            margin-top: 0;
-            color: #00d4ff;
-            font-size: 1.2em;
-            border-bottom: 2px solid #00d4ff;
-            display: inline-block;
-            padding-bottom: 5px;
-        }
-        
         canvas {
             background: #0a0a1a;
-            border-radius: 10px;
-            display: block;
-            width: 100%;
-            height: auto;
             border: 2px solid #00d4ff;
-            margin-bottom: 15px;
-        }
-        
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 15px 0;
+            margin: 20px auto;
+            display: block;
         }
         button {
-            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            background: #00d4ff;
             border: none;
             color: white;
             padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,212,255,0.3); }
-        .btn-danger { background: linear-gradient(135deg, #ff4757 0%, #cc0033 100%); }
-        .btn-warning { background: linear-gradient(135deg, #ffa502 0%, #cc7b00 100%); }
-        .btn-secondary { background: linear-gradient(135deg, #6c5ce7 0%, #4834d4 100%); }
-        .btn-small { padding: 5px 12px; font-size: 14px; }
-        
-        .speed-control {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(0,0,0,0.3);
-            padding: 0 12px;
-            border-radius: 20px;
-        }
-        .speed-value { font-weight: bold; color: #00d4ff; min-width: 50px; text-align: center; }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 15px 0;
-        }
-        .stat-card {
-            background: rgba(0,0,0,0.4);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-label { font-size: 11px; color: #888; }
-        .stat-value { font-size: 20px; font-weight: bold; color: #00d4ff; }
-        
-        .vehicle-list {
-            max-height: 250px;
-            overflow-y: auto;
-            margin: 15px 0;
-        }
-        .vehicle-item {
-            background: rgba(0,212,255,0.1);
-            padding: 8px;
-            margin: 5px 0;
+            margin: 5px;
             border-radius: 5px;
-            font-size: 12px;
+            cursor: pointer;
         }
-        .progress-bar {
-            background: #333;
-            border-radius: 10px;
-            height: 4px;
-            margin-top: 5px;
-            overflow: hidden;
-        }
-        .progress-fill { background: #00d4ff; height: 100%; transition: width 0.3s; }
-        
-        .status {
-            margin-top: 15px;
+        .stats {
+            display: inline-block;
+            margin: 10px;
             padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
+            background: rgba(0,0,0,0.5);
+            border-radius: 5px;
         }
-        .status.running { background: rgba(0,255,0,0.2); border: 1px solid #0f0; color: #0f0; }
-        .status.paused { background: rgba(255,255,0,0.2); border: 1px solid #ff0; color: #ff0; }
-        .status.stopped { background: rgba(255,0,0,0.2); border: 1px solid #f00; color: #f00; }
-        
-        .map-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin: 10px 0;
+        .stat-value {
+            font-size: 24px;
+            color: #00d4ff;
         }
-        .scenario-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
-        .scenario-btn { background: rgba(0,212,255,0.2); font-size: 12px; }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 3px; }
+        .panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚦 Система моделирования транспортных потоков</h1>
-        <div class="subtitle">Визуализация дорожной сети с цветовой индикацией загрузки</div>
-        
-        <div class="main-grid">
-            <div class="panel">
-                <h2>🗺 Дорожная сеть</h2>
-                <canvas id="roadCanvas" width="700" height="500"></canvas>
-                
-                <div class="controls">
-                    <button id="startBtn">▶ Старт</button>
-                    <button id="pauseBtn" class="btn-warning">⏸ Пауза</button>
-                    <button id="stopBtn" class="btn-danger">⏹ Стоп</button>
-                    <button id="resetBtn" class="btn-secondary">🔄 Сброс</button>
-                    <div class="speed-control">
-                        <button id="speedDownBtn" class="btn-small">-</button>
-                        <span class="speed-value" id="speedValue">1.0x</span>
-                        <button id="speedUpBtn" class="btn-small">+</button>
-                    </div>
-                </div>
-                
-                <div class="map-controls">
-                    <span style="color:#888; font-size:12px;">🗺 Карта:</span>
-                    <button id="zoomInBtn" class="btn-small">🔍 +</button>
-                    <button id="zoomOutBtn" class="btn-small">🔍 -</button>
-                    <button id="moveLeftBtn" class="btn-small">◀</button>
-                    <button id="moveRightBtn" class="btn-small">▶</button>
-                    <button id="moveUpBtn" class="btn-small">▲</button>
-                    <button id="moveDownBtn" class="btn-small">▼</button>
-                </div>
-                
-                <div class="scenario-buttons">
-                    <button id="scenario1Btn" class="scenario-btn">📊 Базовое движение</button>
-                    <button id="scenario2Btn" class="scenario-btn">📈 Увеличение интенсивности</button>
-                    <button id="scenario3Btn" class="scenario-btn">🚧 Перекрытие дороги</button>
-                    <button id="scenario4Btn" class="scenario-btn">🚦 Оптимизация светофоров</button>
-                </div>
-            </div>
-            
-            <div class="panel">
-                <h2>📊 Статистика</h2>
-                <div class="stats-grid">
-                    <div class="stat-card"><div class="stat-label">Всего создано ТС</div><div class="stat-value" id="totalVehicles">0</div></div>
-                    <div class="stat-card"><div class="stat-label">Активных ТС</div><div class="stat-value" id="activeVehicles">0</div></div>
-                    <div class="stat-card"><div class="stat-label">Средняя скорость</div><div class="stat-value" id="avgSpeed">0 км/ч</div></div>
-                    <div class="stat-card"><div class="stat-label">Пропускная способность</div><div class="stat-value" id="throughput">0/мин</div></div>
-                    <div class="stat-card"><div class="stat-label">Время симуляции</div><div class="stat-value" id="simTime">0 с</div></div>
-                    <div class="stat-card"><div class="stat-label">Скорость</div><div class="stat-value" id="simSpeed">1x</div></div>
-                </div>
-                
-                <h2>🚗 Транспортные средства</h2>
-                <div class="vehicle-list" id="vehicleList">
-                    <div class="vehicle-item">Нет активных ТС</div>
-                </div>
-                
-                <div class="controls">
-                    <button id="reportBtn" class="btn-secondary">📄 Сохранить отчет</button>
-                    <button id="clearStatsBtn" class="btn-danger">🗑 Очистить статистику</button>
-                </div>
-                
-                <div class="status stopped" id="status">⏹ ОСТАНОВЛЕНА</div>
-                <div style="margin-top: 10px; font-size: 12px; color: #888; text-align: center;">
-                    <span>Сценарий: <strong id="scenarioName">Базовое движение</strong></span>
-                </div>
-            </div>
-        </div>
+    <h1>🚦 Транспортный симулятор</h1>
+    <canvas id="canvas" width="800" height="400"></canvas>
+    
+    <div class="panel">
+        <button id="startBtn">▶ Старт</button>
+        <button id="pauseBtn">⏸ Пауза</button>
+        <button id="stopBtn">⏹ Стоп</button>
+        <button id="resetBtn">🔄 Сброс</button>
+        <button id="speedUpBtn">⚡ Скорость +</button>
+        <button id="speedDownBtn">⚡ Скорость -</button>
+        <button id="zoomInBtn">🔍 Zoom +</button>
+        <button id="zoomOutBtn">🔍 Zoom -</button>
+        <button id="moveLeftBtn">◀ Влево</button>
+        <button id="moveRightBtn">Вправо ▶</button>
+        <button id="moveUpBtn">▲ Вверх</button>
+        <button id="moveDownBtn">Вниз ▼</button>
     </div>
     
-    <script type="module" src="app.js"></script>
+    <div class="panel">
+        <button id="scenario1Btn" style="background:#00d4ff">1. Базовое движение</button>
+        <button id="scenario2Btn">2. Увеличение интенсивности</button>
+        <button id="scenario3Btn">3. Перекрытие дороги</button>
+        <button id="scenario4Btn">4. Оптимизация светофоров</button>
+        <button id="reportBtn">📄 Отчет</button>
+        <button id="clearStatsBtn">🗑 Очистить</button>
+    </div>
+    
+    <div>
+        <div class="stats">Время: <span class="stat-value" id="time">0</span> с</div>
+        <div class="stats">Машин создано: <span class="stat-value" id="totalVehicles">0</span></div>
+        <div class="stats">Активных: <span class="stat-value" id="activeVehicles">0</span></div>
+        <div class="stats">Ср. скорость: <span class="stat-value" id="avgSpeed">0</span> км/ч</div>
+        <div class="stats">Пропускная способность: <span class="stat-value" id="throughput">0</span>/мин</div>
+        <div class="stats">Zoom: <span class="stat-value" id="zoom">1.0</span>x</div>
+        <div class="stats">Скорость симуляции: <span class="stat-value" id="simSpeed">0.5</span>x</div>
+    </div>
+    
+    <div class="stats">
+    <div>🟢 Main Street East: <span id="road1Load">0</span>%</div>
+    <div>🟢 Main Street West: <span id="road2Load">0</span>%</div>
+    <div>🟡 Cross Street: <span id="road3Load">0</span>%</div>
+    <div>📊 Сценарий: <strong id="scenarioName">Базовое движение</strong></div>
+</div>
+    
+    <div id="status" style="margin: 20px; padding: 10px; border-radius: 10px;">⏹ ОСТАНОВЛЕНА</div>
+
+    <script type="module">
+        import init, { TrafficSimulation } from './pkg/traffic_simulation.js';
+        
+        let sim = null;
+        let state = {
+            vehicles: [],
+            roads: [],
+            total_vehicles: 0,
+            current_time: 0,
+            simulation_speed: 0.5,
+            is_running: false,
+            is_paused: false,
+            avg_speed: 0,
+            throughput: 0,
+            zoom: 1.0,
+            offset_x: 0,
+            offset_y: 0,
+            scenario_name: 'Базовое движение'
+        };
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const zoom = state.zoom;
+    const offsetX = state.offset_x;
+    const offsetY = state.offset_y;
+    
+    ctx.save();
+    ctx.translate(offsetX + canvas.width/2, offsetY + canvas.height/2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-canvas.width/2, -canvas.height/2);
+    
+    const centerY = canvas.height / 2;
+    const roadStart = 80;
+    const roadEnd = canvas.width - 80;
+    
+    // Цвета дорог
+    let road1Color = '#00ff00';
+    let road2Color = '#00ff00';
+    let road3Color = '#ffff00';
+    if (state.roads) {
+        let r1 = state.roads.find(r => r.id === 'road_1');
+        let r2 = state.roads.find(r => r.id === 'road_2');
+        let r3 = state.roads.find(r => r.id === 'road_3');
+        if (r1) road1Color = r1.color === 'green' ? '#00ff00' : (r1.color === 'yellow' ? '#ffff00' : '#ff0000');
+        if (r2) road2Color = r2.color === 'green' ? '#00ff00' : (r2.color === 'yellow' ? '#ffff00' : '#ff0000');
+        if (r3) road3Color = r3.color === 'green' ? '#00ff00' : (r3.color === 'yellow' ? '#ffff00' : '#ff0000');
+    }
+    
+    // Дорога 1 - верхняя горизонтальная
+    const road1Y = centerY - 60;
+    ctx.beginPath();
+    ctx.strokeStyle = road1Color;
+    ctx.lineWidth = 4 / zoom;
+    ctx.moveTo(roadStart, road1Y);
+    ctx.lineTo(roadEnd, road1Y);
+    ctx.stroke();
+    ctx.fillStyle = 'white';
+    ctx.font = `${Math.floor(14 / zoom)}px Arial`;
+    ctx.fillText('Main Street East →', roadStart + 20, road1Y - 5);
+    
+    // Дорога 2 - нижняя горизонтальная
+    const road2Y = centerY + 60;
+    ctx.beginPath();
+    ctx.strokeStyle = road2Color;
+    ctx.moveTo(roadStart, road2Y);
+    ctx.lineTo(roadEnd, road2Y);
+    ctx.stroke();
+    ctx.fillText('Main Street West →', roadStart + 20, road2Y - 5);
+    
+    // Дорога 3 - вертикальная
+    const centerX = canvas.width / 2;
+    ctx.beginPath();
+    ctx.strokeStyle = road3Color;
+    ctx.moveTo(centerX, 50);
+    ctx.lineTo(centerX, canvas.height - 50);
+    ctx.stroke();
+    ctx.fillStyle = road3Color;
+    ctx.font = `${Math.floor(14 / zoom)}px Arial`;
+    ctx.fillText('↓ Cross Street', centerX + 10, centerY - 40);
+    
+    // Перекресток
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 12 / zoom, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Светофор
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(centerX + 18 / zoom, centerY - 18 / zoom, 6 / zoom, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    ctx.arc(centerX + 18 / zoom, centerY - 30 / zoom, 6 / zoom, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Въезд
+    ctx.fillStyle = '#00ff00';
+    ctx.font = `${Math.floor(24 / zoom)}px Arial`;
+    ctx.fillText('🚪', roadStart - 15, road1Y - 10);
+    ctx.font = `${Math.floor(10 / zoom)}px Arial`;
+    ctx.fillText('ВЪЕЗД', roadStart - 20, road1Y + 15);
+    
+    // Выезд
+    ctx.fillStyle = '#ff0000';
+    ctx.font = `${Math.floor(24 / zoom)}px Arial`;
+    ctx.fillText('🏁', roadEnd - 10, road2Y - 10);
+    ctx.font = `${Math.floor(10 / zoom)}px Arial`;
+    ctx.fillText('ВЫЕЗД', roadEnd - 25, road2Y + 15);
+    
+    // МАШИНЫ - рисуем с правильными координатами
+    for (let v of state.vehicles) {
+        let x = v.x;
+        let y = v.y;
+        
+        // Конвертация координат из 0-100 в пиксели
+        let screenX = 0;
+        let screenY = 0;
+        
+        if (v.current_road === 'Main Street East') {
+            screenX = roadStart + (x / 100) * (roadEnd - roadStart);
+            screenY = road1Y;
+        } else if (v.current_road === 'Main Street West') {
+            screenX = roadStart + (x / 100) * (roadEnd - roadStart);
+            screenY = road2Y;
+        } else {
+            screenX = centerX;
+            screenY = 50 + (y / 100) * (canvas.height - 100);
+        }
+        
+        let symbol = '🚗';
+        if (v.vehicle_type === 'Truck') symbol = '🚚';
+        if (v.vehicle_type === 'Bus') symbol = '🚌';
+        
+        ctx.fillStyle = '#00d4ff';
+        ctx.font = `${Math.floor(24 / zoom)}px Arial`;
+        ctx.fillText(symbol, screenX - 10, screenY - 5);
+    }
+    
+    ctx.restore();
+    
+    // Информация
+    ctx.fillStyle = '#888';
+    ctx.font = '12px Arial';
+    ctx.fillText(`Zoom: ${state.zoom.toFixed(1)}x`, canvas.width - 80, canvas.height - 10);
+    ctx.fillText(`Машин: ${state.vehicles.length}`, canvas.width - 160, canvas.height - 10);
+}
+        
+        function updateUI() {
+            document.getElementById('time').textContent = state.current_time.toFixed(1);
+            document.getElementById('totalVehicles').textContent = state.total_vehicles || 0;
+            document.getElementById('activeVehicles').textContent = state.vehicles?.length || 0;
+            document.getElementById('avgSpeed').textContent = (state.avg_speed || 0).toFixed(1);
+            document.getElementById('throughput').textContent = (state.throughput || 0).toFixed(0);
+            document.getElementById('zoom').textContent = state.zoom.toFixed(1);
+            document.getElementById('simSpeed').textContent = state.simulation_speed.toFixed(1);
+            document.getElementById('scenarioName').textContent = state.scenario_name || 'Базовое движение';
+            
+            // Подсветка кнопок сценариев
+            const btns = {
+                scenario1Btn: 'Базовое движение',
+                scenario2Btn: 'Увеличение интенсивности',
+                scenario3Btn: 'Перекрытие дороги',
+                scenario4Btn: 'Оптимизация светофоров'
+            };
+            for (const [btnId, name] of Object.entries(btns)) {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    if (state.scenario_name === name) {
+                        btn.style.background = '#00d4ff';
+                    } else {
+                        btn.style.background = 'rgba(0,212,255,0.3)';
+                    }
+                }
+            }
+            
+            if (state.roads) {
+    let r1 = state.roads.find(r => r.id === 'road_1');
+    let r2 = state.roads.find(r => r.id === 'road_2');
+    let r3 = state.roads.find(r => r.id === 'road_3');
+    if (r1) document.getElementById('road1Load').textContent = r1.congestion.toFixed(0);
+    if (r2) document.getElementById('road2Load').textContent = r2.congestion.toFixed(0);
+    if (r3) document.getElementById('road3Load').textContent = r3.congestion.toFixed(0);
+}
+            
+            const statusDiv = document.getElementById('status');
+            if (state.is_running && !state.is_paused) {
+                statusDiv.style.backgroundColor = 'rgba(0,255,0,0.2)';
+                statusDiv.style.color = '#0f0';
+                statusDiv.innerHTML = '▶ ЗАПУЩЕНА';
+            } else if (!state.is_running && state.is_paused) {
+                statusDiv.style.backgroundColor = 'rgba(255,255,0,0.2)';
+                statusDiv.style.color = '#ff0';
+                statusDiv.innerHTML = '⏸ ПАУЗА';
+            } else {
+                statusDiv.style.backgroundColor = 'rgba(255,0,0,0.2)';
+                statusDiv.style.color = '#f00';
+                statusDiv.innerHTML = '⏹ ОСТАНОВЛЕНА';
+            }
+
+            // Подсветка активной кнопки сценария
+            const scenarioBtns = {
+                scenario1Btn: 'Базовое движение',
+                scenario2Btn: 'Увеличение интенсивности',
+                scenario3Btn: 'Перекрытие дороги',
+                scenario4Btn: 'Оптимизация светофоров'
+            };
+            for (const [btnId, name] of Object.entries(scenarioBtns)) {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    if (state.scenario_name === name) {
+                        btn.style.background = '#00d4ff';
+                        btn.style.boxShadow = '0 0 10px #00d4ff';
+                    } else {
+                        btn.style.background = 'rgba(0,212,255,0.3)';
+                        btn.style.boxShadow = 'none';
+                    }
+                }
+            }
+            
+            draw();
+        }
+        
+        async function initSim() {
+            try {
+                await init();
+                sim = new TrafficSimulation();
+                console.log('✅ Симуляция создана!');
+                
+                document.getElementById('startBtn').onclick = () => sim.start();
+                document.getElementById('pauseBtn').onclick = () => sim.pause();
+                document.getElementById('stopBtn').onclick = () => sim.stop();
+                document.getElementById('resetBtn').onclick = () => sim.reset();
+                
+                document.getElementById('speedUpBtn').onclick = () => {
+                    let speed = sim.get_speed();
+                    sim.set_speed(Math.min(5, speed + 0.2));
+                };
+                document.getElementById('speedDownBtn').onclick = () => {
+                    let speed = sim.get_speed();
+                    sim.set_speed(Math.max(0.1, speed - 0.2));
+                };
+                
+                document.getElementById('zoomInBtn').onclick = () => sim.zoom_in();
+                document.getElementById('zoomOutBtn').onclick = () => sim.zoom_out();
+                document.getElementById('moveLeftBtn').onclick = () => sim.move_left();
+                document.getElementById('moveRightBtn').onclick = () => sim.move_right();
+                document.getElementById('moveUpBtn').onclick = () => sim.move_up();
+                document.getElementById('moveDownBtn').onclick = () => sim.move_down();
+                
+                document.getElementById('scenario1Btn').onclick = () => { sim.load_scenario(0); };
+document.getElementById('scenario2Btn').onclick = () => { sim.load_scenario(1); };
+document.getElementById('scenario3Btn').onclick = () => { sim.load_scenario(2); };
+document.getElementById('scenario4Btn').onclick = () => { sim.load_scenario(3); };
+                
+                document.getElementById('reportBtn').onclick = () => {
+                    console.log('📊 ОТЧЕТ:', {
+                        time: state.current_time,
+                        vehicles: state.total_vehicles,
+                        avg_speed: state.avg_speed,
+                        scenario: state.scenario_name
+                    });
+                    alert('📄 Отчет в консоли (F12)');
+                };
+                
+                document.getElementById('clearStatsBtn').onclick = () => sim.reset();
+                
+                function gameLoop() {
+                    const newState = sim.step();
+                    state = newState;
+                    updateUI();
+                    requestAnimationFrame(gameLoop);
+                }
+                
+                gameLoop();
+                
+            } catch (error) {
+                console.error('❌ Ошибка:', error);
+            }
+        }
+        
+        initSim();
+    </script>
+
+    <script type="module">
+    import init, { TrafficSimulation } from './pkg/traffic_simulation.js';
+    
+    let sam = null;
+    
+    async function test() {
+        try {
+            console.log('1. Загрузка WASM...');
+            await init();
+            console.log('2. WASM загружен!');
+            
+            sam = new TrafficSimulation();
+            console.log('3. Симуляция создана!');
+            
+            // Принудительно загружаем сценарий 0
+            sam.load_scenario(0);
+            console.log('4. Сценарий загружен');
+            
+            // Запускаем
+            sam.start();
+            console.log('5. Старт нажат');
+            
+            // Проверяем спавн через 2 секунды
+            setTimeout(() => {
+                const state = sam.step();
+                console.log('6. Состояние:', state);
+                console.log('7. Машин в state:', state.vehicles ? state.vehicles.length : 0);
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+    
+    test();
+</script>
 </body>
 </html>

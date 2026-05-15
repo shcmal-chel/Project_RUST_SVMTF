@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 pub use crate::models::{
     TrafficNetwork, RoadSegment, Intersection, TrafficLight, EntryPoint, ExitPoint,
     Point, RoadType, PriorityRules, LightPhase, LightState, Vehicle, VehicleType,
@@ -81,8 +77,6 @@ struct ExitPointData {
     y: f64,
     road_id: String,
 }
-
-// ========== РЕАЛИЗАЦИЯ КОНВЕРТАЦИИ ==========
 
 impl TrafficNetworkData {
     fn into_network(self) -> TrafficNetwork {
@@ -276,8 +270,6 @@ impl TrafficNetworkData {
     }
 }
 
-// ========== ОСНОВНАЯ РЕАЛИЗАЦИЯ TRAFFICNETWORK ==========
-
 impl TrafficNetwork {
     pub fn new() -> Self {
         Self {
@@ -317,12 +309,15 @@ impl TrafficNetwork {
     pub fn create_demo_network() -> Self {
         let mut network = TrafficNetwork::new();
         
+        // ========== ДОРОГИ ==========
+        
+        // Дорога 1: (10,40) → (50,40)
         let road1 = RoadSegment {
             id: "road_1".to_string(),
-            name: "Main St East".to_string(),
-            start: Point { x: 10.0, y: 50.0 },
-            end: Point { x: 48.0, y: 50.0 },
-            length: 38.0,
+            name: "Main Street East".to_string(),
+            start: Point { x: 10.0, y: 40.0 },
+            end: Point { x: 50.0, y: 40.0 },
+            length: 40.0,
             lanes: 2,
             speed_limit: 50.0,
             capacity: 100,
@@ -330,25 +325,27 @@ impl TrafficNetwork {
             road_type: RoadType::Arterial,
         };
         
-        let road2 = RoadSegment {
-            id: "road_2".to_string(),
-            name: "Main St West".to_string(),
-            start: Point { x: 52.0, y: 50.0 },
-            end: Point { x: 90.0, y: 50.0 },
-            length: 38.0,
-            lanes: 2,
-            speed_limit: 50.0,
-            capacity: 100,
+        // Поворот 1→3: (50,40) → (50,60)
+        let road1_to_3 = RoadSegment {
+            id: "road_1_to_3".to_string(),
+            name: "Turn 1 to 3".to_string(),
+            start: Point { x: 50.0, y: 40.0 },
+            end: Point { x: 50.0, y: 60.0 },
+            length: 20.0,
+            lanes: 1,
+            speed_limit: 30.0,
+            capacity: 30,
             current_vehicles: Vec::new(),
-            road_type: RoadType::Arterial,
+            road_type: RoadType::Collector,
         };
         
+        // Дорога 3: (50,10) → (50,60)
         let road3 = RoadSegment {
             id: "road_3".to_string(),
-            name: "Cross St".to_string(),
+            name: "Cross Street".to_string(),
             start: Point { x: 50.0, y: 10.0 },
-            end: Point { x: 50.0, y: 90.0 },
-            length: 80.0,
+            end: Point { x: 50.0, y: 60.0 },
+            length: 50.0,
             lanes: 1,
             speed_limit: 40.0,
             capacity: 50,
@@ -356,14 +353,67 @@ impl TrafficNetwork {
             road_type: RoadType::Collector,
         };
         
-        network.roads.push(road1);
-        network.roads.push(road2);
-        network.roads.push(road3);
+        // Поворот 3→2: (50,60) → (90,60)
+        let road3_to_2 = RoadSegment {
+            id: "road_3_to_2".to_string(),
+            name: "Turn 3 to 2".to_string(),
+            start: Point { x: 50.0, y: 60.0 },
+            end: Point { x: 90.0, y: 60.0 },
+            length: 40.0,
+            lanes: 1,
+            speed_limit: 30.0,
+            capacity: 30,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Collector,
+        };
         
+        // Поворот 1→2: (50,60) → (90,60)
+        let road1_to_2 = RoadSegment {
+            id: "road_1_to_2".to_string(),
+            name: "Turn 1 to 2".to_string(),
+            start: Point { x: 50.0, y: 60.0 },
+            end: Point { x: 90.0, y: 60.0 },
+            length: 40.0,
+            lanes: 1,
+            speed_limit: 30.0,
+            capacity: 30,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Collector,
+        };
+        
+        // Дорога 2: (10,60) → (90,60) - НЕ МЕНЯТЬ
+        let road2 = RoadSegment {
+            id: "road_2".to_string(),
+            name: "Main Street West".to_string(),
+            start: Point { x: 10.0, y: 60.0 },
+            end: Point { x: 90.0, y: 60.0 },
+            length: 80.0,
+            lanes: 2,
+            speed_limit: 50.0,
+            capacity: 100,
+            current_vehicles: Vec::new(),
+            road_type: RoadType::Arterial,
+        };
+        
+        network.roads.push(road1);
+        network.roads.push(road1_to_3);
+        network.roads.push(road3);
+        network.roads.push(road3_to_2);
+        network.roads.push(road1_to_2);
+        network.roads.push(road2);
+        
+        // ========== ПЕРЕКРЕСТОК ==========
         let intersection = Intersection {
             id: "cross_1".to_string(),
             position: Point { x: 50.0, y: 50.0 },
-            roads_connected: vec!["road_1".to_string(), "road_2".to_string(), "road_3".to_string()],
+            roads_connected: vec![
+                "road_1".to_string(),
+                "road_1_to_3".to_string(),
+                "road_3".to_string(),
+                "road_3_to_2".to_string(),
+                "road_1_to_2".to_string(),
+                "road_2".to_string(),
+            ],
             traffic_light_id: Some("light_1".to_string()),
             priority_rules: PriorityRules {
                 main_road: Some("road_1".to_string()),
@@ -374,6 +424,7 @@ impl TrafficNetwork {
         
         network.intersections.push(intersection);
         
+        // ========== СВЕТОФОР ==========
         let traffic_light = TrafficLight {
             id: "light_1".to_string(),
             intersection_id: "cross_1".to_string(),
@@ -418,9 +469,11 @@ impl TrafficNetwork {
         
         network.traffic_lights.push(traffic_light);
         
-        let entry = EntryPoint {
+        // ========== ТОЧКИ ВЪЕЗДА ==========
+        
+        let entry1 = EntryPoint {
             id: "entry_1".to_string(),
-            position: Point { x: 10.0, y: 50.0 },
+            position: Point { x: 10.0, y: 40.0 },
             road_id: "road_1".to_string(),
             spawn_rate: 0.3,
             vehicle_types: vec![
@@ -430,34 +483,51 @@ impl TrafficNetwork {
             ],
         };
         
-        network.entry_points.push(entry);
-        
-        let exit = ExitPoint {
-            id: "exit_1".to_string(),
-            position: Point { x: 90.0, y: 50.0 },
+        // НЕ МЕНЯТЬ
+        let entry2 = EntryPoint {
+            id: "entry_2".to_string(),
+            position: Point { x: 10.0, y: 60.0 },
             road_id: "road_2".to_string(),
+            spawn_rate: 0.3,
+            vehicle_types: vec![
+                VehicleTypeDistribution { vehicle_type: VehicleType::Car, probability: 0.7 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Truck, probability: 0.2 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Bus, probability: 0.1 },
+            ],
         };
         
-        network.exit_points.push(exit);
+        let entry3 = EntryPoint {
+            id: "entry_3".to_string(),
+            position: Point { x: 50.0, y: 10.0 },
+            road_id: "road_3".to_string(),
+            spawn_rate: 0.3,
+            vehicle_types: vec![
+                VehicleTypeDistribution { vehicle_type: VehicleType::Car, probability: 0.7 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Truck, probability: 0.2 },
+                VehicleTypeDistribution { vehicle_type: VehicleType::Bus, probability: 0.1 },
+            ],
+        };
+        
+        network.entry_points.push(entry1);
+        network.entry_points.push(entry2);
+        network.entry_points.push(entry3);
         
         network
     }
     
     pub fn spawn_vehicle(&self) -> Option<Vehicle> {
         if let Some(entry) = self.entry_points.first() {
-            let vehicle_type = VehicleType::Car;
-            let target_speed = 50.0;
-            
             Some(Vehicle {
                 id: format!("car_{}", chrono::Local::now().timestamp_millis()),
-                vehicle_type,
+                vehicle_type: VehicleType::Car,
                 position: entry.position.clone(),
-                speed: target_speed,
-                target_speed,
-                route: vec!["road_1".to_string(), "road_2".to_string()],
+                speed: 50.0,
+                target_speed: 50.0,
+                route: vec![],
                 current_road: entry.road_id.clone(),
                 distance_traveled: 0.0,
                 waiting_time: 0.0,
+                progress: 0.0,
             })
         } else {
             None
@@ -470,8 +540,6 @@ impl TrafficNetwork {
         }
     }
 }
-
-// ========== ОШИБКИ ==========
 
 #[derive(Debug, thiserror::Error)]
 pub enum NetworkLoadError {

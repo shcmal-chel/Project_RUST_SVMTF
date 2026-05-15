@@ -1,215 +1,98 @@
 import init, { TrafficSimulation } from './pkg/traffic_simulation.js';
 
 let sim = null;
+let state = {
+    vehicles: [],
+    total_vehicles: 0,
+    current_time: 0,
+    simulation_speed: 0.5,
+    is_running: false,
+    is_paused: false,
+    avg_speed: 0,
+    throughput: 0,
+    zoom: 1.0,
+    offset_x: 0,
+    offset_y: 0,
+    scenario_name: 'Базовое движение'
+};
 
 const canvas = document.getElementById('roadCanvas');
 const ctx = canvas.getContext('2d');
 
-// Переменные для хранения состояния камеры
-let cameraZoom = 1.0;
-let cameraOffsetX = 0;
-let cameraOffsetY = 0;
+// Устанавливаем размер canvas
+canvas.width = 800;
+canvas.height = 400;
 
-// Функция уведомлений
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.style.position = 'fixed';
-    notification.style.bottom = '20px';
-    notification.style.right = '20px';
-    notification.style.backgroundColor = '#00d4ff';
-    notification.style.color = '#1a1a2e';
-    notification.style.padding = '10px 20px';
-    notification.style.borderRadius = '10px';
-    notification.style.fontSize = '14px';
-    notification.style.fontWeight = 'bold';
-    notification.style.zIndex = '1000';
-    notification.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-    notification.textContent = message;
-    document.body.appendChild(notification);
+function draw() {
+    if (!sim) return;
     
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.5s';
-        setTimeout(() => notification.remove(), 500);
-    }, 2000);
-}
-
-function drawRoads(state) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     ctx.fillStyle = '#0a0a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    const zoom = state.zoom || 1.0;
-    const offsetX = state.offset_x || 0;
-    const offsetY = state.offset_y || 0;
+    const zoom = state.zoom;
+    const offsetX = state.offset_x;
+    const offsetY = state.offset_y;
     
-    cameraZoom = zoom;
-    cameraOffsetX = offsetX;
-    cameraOffsetY = offsetY;
+    // Рисуем дорогу (без трансформации, фиксированные координаты)
+    const roadY = canvas.height / 2;
+    const startX = 80;
+    const endX = canvas.width - 80;
     
-    const centerX = canvas.width / 2 + offsetX;
-    const centerY = canvas.height / 2 + offsetY;
+    ctx.beginPath();
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 4;
+    ctx.moveTo(startX, roadY);
+    ctx.lineTo(endX, roadY);
+    ctx.stroke();
     
-    const roadColors = { road_1: '#00ff00', road_2: '#00ff00', road_3: '#ffff00' };
-    if (state.roads) {
-        for (let r of state.roads) {
-            if (r.id === 'road_1') roadColors.road_1 = r.color === 'green' ? '#00ff00' : (r.color === 'yellow' ? '#ffff00' : '#ff0000');
-            if (r.id === 'road_2') roadColors.road_2 = r.color === 'green' ? '#00ff00' : (r.color === 'yellow' ? '#ffff00' : '#ff0000');
-            if (r.id === 'road_3') roadColors.road_3 = r.color === 'green' ? '#00ff00' : (r.color === 'yellow' ? '#ffff00' : '#ff0000');
+    // Стрелка
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText('→', canvas.width / 2 - 20, roadY - 5);
+    
+    // Въезд
+    ctx.fillStyle = '#00ff00';
+    ctx.font = '24px Arial';
+    ctx.fillText('🚪', startX - 15, roadY - 10);
+    ctx.font = '10px Arial';
+    ctx.fillText('ВЪЕЗД', startX - 20, roadY + 15);
+    
+    // Выезд
+    ctx.fillStyle = '#ff0000';
+    ctx.font = '24px Arial';
+    ctx.fillText('🏁', endX - 10, roadY - 10);
+    ctx.font = '10px Arial';
+    ctx.fillText('ВЫЕЗД', endX - 25, roadY + 15);
+    
+    // Рисуем машины с учетом zoom и offset
+    for (let v of state.vehicles) {
+        // Координата X машины с учетом zoom и offset
+        let x = (v.x / 100) * (endX - startX) + startX;
+        x = x * zoom + offsetX;
+        
+        // Если машина в пределах экрана
+        if (x > -50 && x < canvas.width + 50) {
+            let symbol = '🚗';
+            if (v.vehicle_type === 'Truck') symbol = '🚚';
+            if (v.vehicle_type === 'Bus') symbol = '🚌';
+            
+            ctx.fillStyle = '#00d4ff';
+            ctx.font = '24px Arial';
+            ctx.fillText(symbol, x - 10, roadY - 5);
         }
     }
     
-    ctx.save();
-    ctx.scale(zoom, zoom);
-    ctx.translate(offsetX / zoom, offsetY / zoom);
-    
-    // Дорога 1
-    ctx.beginPath();
-    ctx.strokeStyle = roadColors.road_1;
-    ctx.lineWidth = 6 / zoom;
-    ctx.moveTo(50, centerY - 60);
-    ctx.lineTo(centerX - 30, centerY - 60);
-    ctx.stroke();
-    
-    // Дорога 2
-    ctx.beginPath();
-    ctx.strokeStyle = roadColors.road_2;
-    ctx.moveTo(50, centerY + 60);
-    ctx.lineTo(centerX - 30, centerY + 60);
-    ctx.stroke();
-    
-    // Дорога 3
-    ctx.beginPath();
-    ctx.strokeStyle = roadColors.road_3;
-    ctx.moveTo(centerX, 50);
-    ctx.lineTo(centerX, canvas.height - 50);
-    ctx.stroke();
-    
-    // Стрелки
-    ctx.fillStyle = roadColors.road_1;
-    ctx.font = `${Math.floor(24 / zoom)}px Arial`;
-    ctx.fillText('→', (centerX - 50) / zoom, (centerY - 55) / zoom);
-    
-    ctx.fillStyle = roadColors.road_2;
-    ctx.fillText('→', (centerX - 50) / zoom, (centerY + 65) / zoom);
-    
-    ctx.fillStyle = roadColors.road_3;
-    ctx.fillText('↓', (centerX - 10) / zoom, (canvas.height - 60) / zoom);
-    ctx.fillText('↑', (centerX - 10) / zoom, 60 / zoom);
-    
-    // Перекресток
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowBlur = 5 / zoom;
-    ctx.beginPath();
-    ctx.arc(centerX / zoom, centerY / zoom, 12 / zoom, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Светофор
-    ctx.fillStyle = '#ff0000';
-    ctx.beginPath();
-    ctx.arc((centerX + 18) / zoom, (centerY - 18) / zoom, 6 / zoom, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#00ff00';
-    ctx.beginPath();
-    ctx.arc((centerX + 18) / zoom, (centerY - 30) / zoom, 6 / zoom, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Точка въезда
-    ctx.fillStyle = '#00ff00';
-    ctx.font = `${Math.floor(28 / zoom)}px Arial`;
-    ctx.fillText('🚪', 20 / zoom, (centerY - 70) / zoom);
-    ctx.font = `${Math.floor(12 / zoom)}px Arial`;
-    ctx.fillText('ВЪЕЗД', 15 / zoom, (centerY - 45) / zoom);
-    
-    // Точка выезда
-    ctx.fillStyle = '#ff0000';
-    ctx.font = `${Math.floor(28 / zoom)}px Arial`;
-    ctx.fillText('🏁', (canvas.width - 60) / zoom, (centerY + 50) / zoom);
-    ctx.font = `${Math.floor(12 / zoom)}px Arial`;
-    ctx.fillText('ВЫЕЗД', (canvas.width - 75) / zoom, (centerY + 75) / zoom);
-    
-    // Надписи дорог
-    ctx.font = `${Math.floor(10 / zoom)}px Arial`;
-    ctx.fillStyle = roadColors.road_1;
-    ctx.fillText('Main Street East', (centerX - 120) / zoom, (centerY - 70) / zoom);
-    
-    ctx.fillStyle = roadColors.road_2;
-    ctx.fillText('Main Street West', (centerX - 120) / zoom, (centerY + 75) / zoom);
-    
-    ctx.fillStyle = roadColors.road_3;
-    ctx.fillText('Cross Street', (centerX + 20) / zoom, (centerY - 80) / zoom);
-    
-    // Загрузка дорог в процентах
-    if (state.roads) {
-        let road1 = state.roads.find(r => r.id === 'road_1');
-        if (road1) {
-            ctx.fillStyle = road1.color === 'green' ? '#00ff00' : (road1.color === 'yellow' ? '#ffff00' : '#ff0000');
-            ctx.fillText(`Загрузка: ${road1.congestion.toFixed(0)}%`, (centerX - 120) / zoom, (centerY - 55) / zoom);
-        }
-        let road2 = state.roads.find(r => r.id === 'road_2');
-        if (road2) {
-            ctx.fillStyle = road2.color === 'green' ? '#00ff00' : (road2.color === 'yellow' ? '#ffff00' : '#ff0000');
-            ctx.fillText(`Загрузка: ${road2.congestion.toFixed(0)}%`, (centerX - 120) / zoom, (centerY + 90) / zoom);
-        }
-        let road3 = state.roads.find(r => r.id === 'road_3');
-        if (road3) {
-            ctx.fillStyle = road3.color === 'green' ? '#00ff00' : (road3.color === 'yellow' ? '#ffff00' : '#ff0000');
-            ctx.fillText(`Загрузка: ${road3.congestion.toFixed(0)}%`, (centerX + 20) / zoom, (centerY - 65) / zoom);
-        }
-    }
-    
-    ctx.restore();
-    
-    // Легенда
-    ctx.font = '9px Arial';
+    // Информация
     ctx.fillStyle = '#888';
-    ctx.fillText('🟢 Свободно (<30%)', 10, canvas.height - 25);
-    ctx.fillText('🟡 Средняя (30-60%)', 10, canvas.height - 15);
-    ctx.fillText('🔴 Затор (>60%)', 10, canvas.height - 5);
-    
-    ctx.font = '8px Arial';
-    ctx.fillStyle = '#666';
-    ctx.fillText(`Масштаб: ${zoom.toFixed(1)}x`, canvas.width - 80, canvas.height - 5);
+    ctx.font = '12px Arial';
+    ctx.fillText(`Zoom: ${zoom.toFixed(1)}x`, canvas.width - 80, canvas.height - 10);
+    ctx.fillText(`Offset: (${offsetX.toFixed(0)}, ${offsetY.toFixed(0)})`, canvas.width - 180, canvas.height - 10);
+    ctx.fillText(`Машин: ${state.vehicles.length}`, canvas.width - 180, canvas.height - 25);
+    ctx.fillText(`Время: ${state.current_time.toFixed(1)}с`, canvas.width - 180, canvas.height - 40);
 }
 
-function drawVehicles(vehicles, zoom, offsetX, offsetY) {
-    if (!vehicles) return;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    
-    ctx.save();
-    ctx.scale(zoom, zoom);
-    ctx.translate(offsetX / zoom, offsetY / zoom);
-    
-    for (let v of vehicles) {
-        let symbol = '🚗';
-        if (v.vehicle_type === 'Truck') symbol = '🚚';
-        if (v.vehicle_type === 'Bus') symbol = '🚌';
-        
-        let x, y;
-        if (v.current_road === 'Main Street East') {
-            x = 50 + (v.progress / 100) * (centerX - 80);
-            y = centerY - 60;
-        } else if (v.current_road === 'Main Street West') {
-            x = 50 + (v.progress / 100) * (centerX - 80);
-            y = centerY + 60;
-        } else {
-            x = centerX;
-            y = 50 + (v.progress / 100) * (canvas.height - 100);
-        }
-        
-        ctx.font = `${Math.floor(20 / zoom)}px Arial`;
-        ctx.fillText(symbol, x / zoom - 10, y / zoom - 5);
-        
-        ctx.font = `${Math.floor(8 / zoom)}px Arial`;
-        ctx.fillStyle = 'white';
-        ctx.fillText(`${v.speed.toFixed(0)} км/ч`, x / zoom - 12, y / zoom - 15);
-    }
-    ctx.restore();
-}
-
-function updateUI(state) {
+function updateUI() {
     document.getElementById('totalVehicles').textContent = state.total_vehicles || 0;
     document.getElementById('activeVehicles').textContent = state.vehicles?.length || 0;
     document.getElementById('avgSpeed').textContent = `${(state.avg_speed || 0).toFixed(1)} км/ч`;
@@ -217,18 +100,7 @@ function updateUI(state) {
     document.getElementById('simTime').textContent = (state.current_time || 0).toFixed(1);
     document.getElementById('simSpeed').textContent = `${(state.simulation_speed || 0.5).toFixed(1)}x`;
     document.getElementById('speedValue').textContent = `${(state.simulation_speed || 0.5).toFixed(1)}x`;
-    
-    const scenarioName = state.scenario_name || 'Базовое движение';
-    document.getElementById('scenarioName').textContent = scenarioName;
-    
-    // Подсветка кнопок сценариев
-    document.querySelectorAll('.scenario-btn').forEach(btn => {
-        btn.style.background = 'rgba(0,212,255,0.2)';
-    });
-    if (scenarioName === 'Базовое движение') document.getElementById('scenario1Btn').style.background = '#00d4ff';
-    else if (scenarioName === 'Увеличение интенсивности') document.getElementById('scenario2Btn').style.background = '#00d4ff';
-    else if (scenarioName === 'Перекрытие дороги') document.getElementById('scenario3Btn').style.background = '#00d4ff';
-    else if (scenarioName === 'Оптимизация светофоров') document.getElementById('scenario4Btn').style.background = '#00d4ff';
+    document.getElementById('scenarioName').textContent = state.scenario_name || 'Базовое движение';
     
     const statusDiv = document.getElementById('status');
     if (state.is_running) {
@@ -257,26 +129,18 @@ function updateUI(state) {
         `).join('');
     }
     
-    drawRoads(state);
-    drawVehicles(state.vehicles, state.zoom || 1.0, state.offset_x || 0, state.offset_y || 0);
+    draw();
 }
 
-function generateReport() {
-    const report = {
-        timestamp: new Date().toISOString(),
-        total_vehicles: document.getElementById('totalVehicles').textContent,
-        avg_speed: document.getElementById('avgSpeed').textContent,
-        simulation_time: document.getElementById('simTime').textContent,
-        scenario: document.getElementById('scenarioName').textContent
-    };
-    console.log('Отчет:', report);
-    showNotification('📄 Отчет сохранен в консоль (F12)');
+function showNotification(msg) {
+    console.log(msg);
 }
 
 async function initSimulation() {
     try {
         await init();
         sim = new TrafficSimulation();
+        console.log('✅ Симуляция создана!');
         
         document.getElementById('startBtn').onclick = () => { sim.start(); };
         document.getElementById('pauseBtn').onclick = () => { sim.pause(); };
@@ -299,42 +163,46 @@ async function initSimulation() {
         document.getElementById('moveUpBtn').onclick = () => { sim.move_up(); };
         document.getElementById('moveDownBtn').onclick = () => { sim.move_down(); };
         
-        // Сценарии с уведомлениями
         document.getElementById('scenario1Btn').onclick = () => {
             sim.load_scenario(0);
-            document.getElementById('scenarioName').textContent = 'Базовое движение';
-            showNotification('📊 Базовое движение: нормальная интенсивность');
+            showNotification('📊 Базовое движение');
         };
         document.getElementById('scenario2Btn').onclick = () => {
             sim.load_scenario(1);
-            document.getElementById('scenarioName').textContent = 'Увеличение интенсивности';
-            showNotification('📈 Увеличение интенсивности: поток увеличен в 3 раза');
+            showNotification('📈 Увеличение интенсивности');
         };
         document.getElementById('scenario3Btn').onclick = () => {
             sim.load_scenario(2);
-            document.getElementById('scenarioName').textContent = 'Перекрытие дороги';
-            showNotification('🚧 Перекрытие дороги: Main Street East закрыта');
+            showNotification('🚧 Перекрытие дороги');
         };
         document.getElementById('scenario4Btn').onclick = () => {
             sim.load_scenario(3);
-            document.getElementById('scenarioName').textContent = 'Оптимизация светофоров';
-            showNotification('🚦 Оптимизация светофоров: ускорен цикл переключения');
+            showNotification('🚦 Оптимизация светофоров');
         };
         
-        document.getElementById('reportBtn').onclick = generateReport;
+        document.getElementById('reportBtn').onclick = () => {
+            console.log('ОТЧЕТ:', {
+                время: state.current_time,
+                машины: state.total_vehicles,
+                скорость: state.avg_speed,
+                сценарий: state.scenario_name
+            });
+            alert('📄 Отчет в консоли (F12)');
+        };
+        
         document.getElementById('clearStatsBtn').onclick = () => { sim.reset(); };
         
-        async function gameLoop() {
-            const state = sim.step();
-            updateUI(state);
+        function gameLoop() {
+            const newState = sim.step();
+            state = newState;
+            updateUI();
             requestAnimationFrame(gameLoop);
         }
         
         gameLoop();
-        console.log('Симуляция запущена!');
         
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('❌ Ошибка:', error);
         document.getElementById('status').innerHTML = '❌ ОШИБКА ЗАГРУЗКИ';
     }
 }

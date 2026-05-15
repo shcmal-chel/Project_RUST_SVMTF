@@ -85,6 +85,7 @@ pub struct Vehicle {
     pub current_road: String,
     pub distance_traveled: f64,
     pub waiting_time: f64,
+    pub progress: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

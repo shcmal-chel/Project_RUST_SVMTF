@@ -111,8 +111,6 @@ impl TrafficSimulation {
         self.vehicles.clear();
         self.current_time = 0.0;
         self.total_vehicles = 0;
-        self.network = TrafficNetwork::create_demo_network();
-        self.next_id = 1;
     }
     
     pub fn reset(&mut self) {
@@ -163,15 +161,53 @@ impl TrafficSimulation {
     }
     
     pub fn load_scenario(&mut self, index: usize) {
-        let scenarios = scenarios::get_demo_scenarios();
-        if let Some((name, scenario)) = scenarios.get(index) {
-            let mut new_network = TrafficNetwork::create_demo_network();
-            if let Ok(()) = scenario.apply(&mut new_network) {
-                self.network = new_network;
-                self.scenario_name = name.clone();
-                self.reset();
+        self.network = TrafficNetwork::create_demo_network();
+        self.vehicles.clear();
+        self.total_vehicles = 0;
+        self.current_time = 0.0;
+        self.is_running = false;
+        self.is_paused = false;
+        self.next_id = 1;
+        
+        match index {
+            0 => {
+                self.scenario_name = "Базовое движение".to_string();
+                for entry in &mut self.network.entry_points {
+                    entry.spawn_rate = 0.3;
+                }
             }
+            1 => {
+                self.scenario_name = "Увеличение интенсивности".to_string();
+                for entry in &mut self.network.entry_points {
+                    entry.spawn_rate = 0.8;
+                }
+            }
+            2 => {
+                self.scenario_name = "Перекрытие дороги".to_string();
+                for entry in &mut self.network.entry_points {
+                    if entry.road_id == "road_1" {
+                        entry.spawn_rate = 0.0;
+                    } else {
+                        entry.spawn_rate = 0.3;
+                    }
+                }
+            }
+            3 => {
+                self.scenario_name = "Оптимизация светофоров".to_string();
+                for entry in &mut self.network.entry_points {
+                    entry.spawn_rate = 0.4;
+                }
+                for light in &mut self.network.traffic_lights {
+                    for phase in &mut light.phases {
+                        if phase.road_directions.values().any(|s| *s == LightState::Green) {
+                            phase.duration = 8.0;
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
+        println!("✅ Сценарий: {}", self.scenario_name);
     }
     
     pub fn get_scenario_name(&self) -> String {
@@ -179,62 +215,43 @@ impl TrafficSimulation {
     }
     
     fn get_state(&self) -> SimulationState {
-    let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
-        .map(|v| {
-            let road_name = if v.current_road == "road_1" { "Main Street East" }
-                           else if v.current_road == "road_2" { "Main Street West" }
-                           else { "Cross Street" };
-            VehicleData {
-                id: v.id.parse().unwrap_or(0),
-                vehicle_type: format!("{:?}", v.vehicle_type),
-                x: v.position.x,
-                y: v.position.y,
-                progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
-                current_road: road_name.to_string(),
-                speed: v.speed,
-            }
-        })
-        .collect();
-    
-    // Расчет загрузки дорог на основе количества машин и spawn_rate
-    let road_data: Vec<RoadData> = self.network.roads.iter()
-        .map(|r| {
-            let vehicle_count = self.vehicles.iter()
-                .filter(|v| v.current_road == r.id)
-                .count();
-            
-            // Базовая загрузка от машин
-            let mut congestion = (vehicle_count as f64 / r.capacity as f64) * 100.0;
-            
-            // Дополнительная загрузка от сценария
-            for entry in &self.network.entry_points {
-                if entry.road_id == r.id {
-                    if entry.spawn_rate > 0.6 {
-                        congestion += 30.0; // Увеличение интенсивности
-                    }
-                    if r.capacity < 20 {
-                        congestion += 50.0; // Перекрытие дороги
-                    }
+        let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
+            .map(|v| {
+                let road_name = if v.current_road == "road_1" { "Main Street East" }
+                               else if v.current_road == "road_2" { "Main Street West" }
+                               else { "Cross Street" };
+                VehicleData {
+                    id: v.id.parse().unwrap_or(0),
+                    vehicle_type: format!("{:?}", v.vehicle_type),
+                    x: v.position.x,
+                    y: v.position.y,
+                    progress: (v.distance_traveled / 40.0 * 100.0).min(100.0),
+                    current_road: road_name.to_string(),
+                    speed: v.speed,
                 }
-            }
-            
-            let congestion = congestion.min(100.0);
-            let color = if congestion < 30.0 { "green" }
-                       else if congestion < 60.0 { "yellow" }
-                       else { "red" };
-            
-            RoadData {
-                id: r.id.clone(),
-                name: r.name.clone(),
-                congestion,
-                color: color.to_string(),
-            }
-        })
-        .collect();
+            })
+            .collect();
+        
+        let road_data: Vec<RoadData> = self.network.roads.iter()
+            .map(|r| {
+                let vehicle_count = self.vehicles.iter()
+                    .filter(|v| v.current_road == r.id)
+                    .count();
+                let congestion = (vehicle_count as f64 / r.capacity as f64 * 100.0).min(100.0);
+                let color = if congestion < 30.0 { "green" }
+                           else if congestion < 60.0 { "yellow" }
+                           else { "red" };
+                RoadData {
+                    id: r.id.clone(),
+                    name: r.name.clone(),
+                    congestion,
+                    color: color.to_string(),
+                }
+            })
+            .collect();
         
         let avg_speed = if !self.vehicles.is_empty() {
-            let total_speed: f64 = self.vehicles.iter().map(|v| v.speed).sum();
-            total_speed / self.vehicles.len() as f64
+            self.vehicles.iter().map(|v| v.speed).sum::<f64>() / self.vehicles.len() as f64
         } else { 0.0 };
         
         let throughput = if self.current_time > 0.0 {
@@ -259,38 +276,73 @@ impl TrafficSimulation {
     }
     
     fn update_vehicles(&mut self) {
-        for vehicle in &mut self.vehicles {
-            let step = vehicle.target_speed * self.simulation_speed * 0.05;
-            vehicle.distance_traveled += step;
-            
-            if let Some(road) = self.network.roads.iter().find(|r| r.id == vehicle.current_road) {
-                if vehicle.distance_traveled >= road.length {
-                    if vehicle.route.len() > 1 {
-                        vehicle.current_road = vehicle.route[1].clone();
-                        vehicle.distance_traveled = 0.0;
-                    }
+    for vehicle in &mut self.vehicles {
+        let step = vehicle.target_speed * self.simulation_speed * 0.05;
+        vehicle.distance_traveled += step;
+        
+        let current_road = vehicle.current_road.clone();
+        let road = self.network.roads.iter().find(|r| r.id == current_road);
+        
+        if let Some(road) = road {
+            if vehicle.distance_traveled >= road.length {
+                if current_road == "road_1" {
+                    vehicle.current_road = "road_1_to_3".to_string();
+                    vehicle.distance_traveled = 0.0;
+                } 
+                else if current_road == "road_1_to_3" {
+                    vehicle.current_road = "road_1_to_2".to_string();
+                    vehicle.distance_traveled = 0.0;
+                } 
+                else if current_road == "road_3" {
+                    vehicle.current_road = "road_3_to_2".to_string();
+                    vehicle.distance_traveled = 0.0;
+                } 
+                else if current_road == "road_1_to_2" {
+                    // Доехал до конца road_1_to_2 - удаляем
+                    vehicle.progress = 100.0;
+                    continue;
                 }
-                
-                let t = (vehicle.distance_traveled / road.length).min(1.0);
-                vehicle.position.x = road.start.x + (road.end.x - road.start.x) * t;
+                else if current_road == "road_3_to_2" {
+                    // Доехал до конца road_3_to_2 - удаляем
+                    vehicle.progress = 100.0;
+                    continue;
+                }
+                else if current_road == "road_2" {
+                    vehicle.progress = 100.0;
+                    continue;
+                }
+                continue;
+            }
+            
+            let t = vehicle.distance_traveled / road.length;
+            
+            if current_road == "road_1_to_3" || current_road == "road_3" {
+                vehicle.position.x = road.start.x;
                 vehicle.position.y = road.start.y + (road.end.y - road.start.y) * t;
             }
-        }
-        
-        self.vehicles.retain(|v| {
-            if let Some(road) = self.network.roads.iter().find(|r| r.id == v.current_road) {
-                v.distance_traveled < road.length || v.route.len() > 1
-            } else {
-                false
+            else if current_road == "road_1_to_2" || current_road == "road_3_to_2" {
+                vehicle.position.x = road.start.x + (road.end.x - road.start.x) * t;
+                vehicle.position.y = road.start.y;
             }
-        });
+            else {
+                vehicle.position.x = road.start.x + (road.end.x - road.start.x) * t;
+                vehicle.position.y = road.start.y;
+            }
+        }
     }
+    
+    self.vehicles.retain(|v| v.progress < 100.0);
+}
     
     fn spawn_vehicles(&mut self) {
         for entry in &self.network.entry_points {
-            let chance = entry.spawn_rate * self.simulation_speed / 20.0;
+            if entry.spawn_rate == 0.0 {
+                continue;
+            }
             
-            if Math::random() < chance {
+            let chance = entry.spawn_rate * self.simulation_speed / 15.0;
+            
+            if Math::random() < chance && self.vehicles.len() < 30 {
                 let r = Math::random();
                 let vehicle_type = if r < 0.7 {
                     VehicleType::Car
@@ -313,10 +365,11 @@ impl TrafficSimulation {
                     position: entry.position.clone(),
                     speed: target_speed,
                     target_speed,
-                    route: vec!["road_1".to_string(), "road_2".to_string()],
+                    route: vec![],
                     current_road: entry.road_id.clone(),
                     distance_traveled: 0.0,
                     waiting_time: 0.0,
+                    progress: 0.0,
                 };
                 
                 self.vehicles.push(vehicle);
