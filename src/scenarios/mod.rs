@@ -1,9 +1,4 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use crate::models::*;
-
 
 pub enum Scenario {
     BaseFlow,
@@ -22,6 +17,7 @@ impl Scenario {
                 }
                 for road in &mut network.roads {
                     road.capacity = 100;
+                    road.speed_limit = 50.0;
                 }
                 println!("✅ Сценарий: Базовое движение");
                 Ok(())
@@ -35,7 +31,7 @@ impl Scenario {
                 Ok(())
             }
             Scenario::RoadClosure => {
-                // Перекрытие центральной дороги
+                // Перекрытие Main Street East
                 if let Some(road) = network.roads.iter_mut().find(|r| r.id == "road_1") {
                     road.capacity = 10;
                     println!("✅ Сценарий: Перекрытие дороги Main Street East");
@@ -43,11 +39,11 @@ impl Scenario {
                 Ok(())
             }
             Scenario::TrafficLightChanges => {
-                // Оптимизация светофоров - меняем фазы
+                // Оптимизация светофоров
                 for light in &mut network.traffic_lights {
                     for phase in &mut light.phases {
                         if phase.road_directions.values().any(|s| *s == LightState::Green) {
-                            phase.duration = 20.0; // Уменьшаем время для оптимизации
+                            phase.duration = 15.0; // Уменьшаем время для ускорения потока
                         }
                     }
                 }

@@ -179,40 +179,58 @@ impl TrafficSimulation {
     }
     
     fn get_state(&self) -> SimulationState {
-        let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
-            .map(|v| {
-                let road_name = if v.current_road == "road_1" { "Main Street East" }
-                               else if v.current_road == "road_2" { "Main Street West" }
-                               else { "Cross Street" };
-                VehicleData {
-                    id: v.id.parse().unwrap_or(0),
-                    vehicle_type: format!("{:?}", v.vehicle_type),
-                    x: v.position.x,
-                    y: v.position.y,
-                    progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
-                    current_road: road_name.to_string(),
-                    speed: v.speed,
+    let vehicle_data: Vec<VehicleData> = self.vehicles.iter()
+        .map(|v| {
+            let road_name = if v.current_road == "road_1" { "Main Street East" }
+                           else if v.current_road == "road_2" { "Main Street West" }
+                           else { "Cross Street" };
+            VehicleData {
+                id: v.id.parse().unwrap_or(0),
+                vehicle_type: format!("{:?}", v.vehicle_type),
+                x: v.position.x,
+                y: v.position.y,
+                progress: (v.distance_traveled / 38.0 * 100.0).min(100.0),
+                current_road: road_name.to_string(),
+                speed: v.speed,
+            }
+        })
+        .collect();
+    
+    // Расчет загрузки дорог на основе количества машин и spawn_rate
+    let road_data: Vec<RoadData> = self.network.roads.iter()
+        .map(|r| {
+            let vehicle_count = self.vehicles.iter()
+                .filter(|v| v.current_road == r.id)
+                .count();
+            
+            // Базовая загрузка от машин
+            let mut congestion = (vehicle_count as f64 / r.capacity as f64) * 100.0;
+            
+            // Дополнительная загрузка от сценария
+            for entry in &self.network.entry_points {
+                if entry.road_id == r.id {
+                    if entry.spawn_rate > 0.6 {
+                        congestion += 30.0; // Увеличение интенсивности
+                    }
+                    if r.capacity < 20 {
+                        congestion += 50.0; // Перекрытие дороги
+                    }
                 }
-            })
-            .collect();
-        
-        let road_data: Vec<RoadData> = self.network.roads.iter()
-            .map(|r| {
-                let vehicle_count = self.vehicles.iter()
-                    .filter(|v| v.current_road == r.id)
-                    .count();
-                let congestion = (vehicle_count as f64 / r.capacity as f64) * 100.0;
-                let color = if congestion < 30.0 { "green" }
-                           else if congestion < 60.0 { "yellow" }
-                           else { "red" };
-                RoadData {
-                    id: r.id.clone(),
-                    name: r.name.clone(),
-                    congestion,
-                    color: color.to_string(),
-                }
-            })
-            .collect();
+            }
+            
+            let congestion = congestion.min(100.0);
+            let color = if congestion < 30.0 { "green" }
+                       else if congestion < 60.0 { "yellow" }
+                       else { "red" };
+            
+            RoadData {
+                id: r.id.clone(),
+                name: r.name.clone(),
+                congestion,
+                color: color.to_string(),
+            }
+        })
+        .collect();
         
         let avg_speed = if !self.vehicles.is_empty() {
             let total_speed: f64 = self.vehicles.iter().map(|v| v.speed).sum();
