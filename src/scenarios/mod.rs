@@ -1,3 +1,8 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
+
 use crate::models::*;
 
 pub enum Scenario {
@@ -11,43 +16,38 @@ impl Scenario {
     pub fn apply(&self, network: &mut TrafficNetwork) -> Result<(), String> {
         match self {
             Scenario::BaseFlow => {
-                // Стандартные параметры
                 for entry in &mut network.entry_points {
                     entry.spawn_rate = 0.3;
                 }
-                for road in &mut network.roads {
-                    road.capacity = 100;
-                    road.speed_limit = 50.0;
+                for light in &mut network.traffic_lights {
+                    light.phases[0].duration = 35.0;
+                    light.phases[1].duration = 5.0;
+                    light.phases[2].duration = 25.0;
+                    light.phases[3].duration = 5.0;
                 }
-                println!("✅ Сценарий: Базовое движение");
                 Ok(())
             }
             Scenario::IncreasedIntensity => {
-                // Увеличение интенсивности в 3 раза
                 for entry in &mut network.entry_points {
                     entry.spawn_rate = 0.9;
                 }
-                println!("✅ Сценарий: Увеличение интенсивности (поток увеличен в 3 раза)");
                 Ok(())
             }
             Scenario::RoadClosure => {
-                // Перекрытие Main Street East
-                if let Some(road) = network.roads.iter_mut().find(|r| r.id == "road_1") {
-                    road.capacity = 10;
-                    println!("✅ Сценарий: Перекрытие дороги Main Street East");
+                for entry in &mut network.entry_points {
+                    if entry.road_id == "road_1" {
+                        entry.spawn_rate = 0.0;
+                    }
                 }
                 Ok(())
             }
             Scenario::TrafficLightChanges => {
-                // Оптимизация светофоров
                 for light in &mut network.traffic_lights {
-                    for phase in &mut light.phases {
-                        if phase.road_directions.values().any(|s| *s == LightState::Green) {
-                            phase.duration = 15.0; // Уменьшаем время для ускорения потока
-                        }
-                    }
+                    light.phases[0].duration = 20.0;
+                    light.phases[1].duration = 3.0;
+                    light.phases[2].duration = 15.0;
+                    light.phases[3].duration = 3.0;
                 }
-                println!("✅ Сценарий: Оптимизация светофоров");
                 Ok(())
             }
         }

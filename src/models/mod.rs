@@ -1,9 +1,7 @@
-#![allow(dead_code)]
-
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrafficNetwork {
     pub roads: Vec<RoadSegment>,
     pub intersections: Vec<Intersection>,
@@ -51,7 +49,7 @@ pub struct LightPhase {
     pub road_directions: HashMap<String, LightState>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]  // Добавлен PartialEq
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LightState {
     Red,
     Yellow,
@@ -121,34 +119,4 @@ pub struct PriorityRules {
 pub struct VehicleTypeDistribution {
     pub vehicle_type: VehicleType,
     pub probability: f64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CongestionLevel {
-    Free,
-    Moderate,
-    Heavy,
-    Gridlock,
-}
-
-impl RoadSegment {
-    pub fn congestion_level(&self) -> CongestionLevel {
-        let occupancy = self.current_vehicles.len() as f64 / self.capacity as f64;
-        match occupancy {
-            x if x < 0.3 => CongestionLevel::Free,
-            x if x < 0.6 => CongestionLevel::Moderate,
-            x if x < 0.9 => CongestionLevel::Heavy,
-            _ => CongestionLevel::Gridlock,
-        }
-    }
-    
-    pub fn current_speed(&self) -> f64 {
-        let base_speed = self.speed_limit;
-        match self.congestion_level() {
-            CongestionLevel::Free => base_speed,
-            CongestionLevel::Moderate => base_speed * 0.7,
-            CongestionLevel::Heavy => base_speed * 0.4,
-            CongestionLevel::Gridlock => base_speed * 0.1,
-        }
-    }
 }

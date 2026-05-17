@@ -3,7 +3,7 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     margin: 0;
     padding: 20px;
@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
 }
 
@@ -28,6 +28,7 @@ h1 {
     text-align: center;
     color: #aaa;
     margin-bottom: 20px;
+    font-size: 14px;
 }
 
 .main-grid {
@@ -37,7 +38,7 @@ h1 {
     margin-bottom: 20px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
     .main-grid {
         grid-template-columns: 1fr;
     }
@@ -54,7 +55,7 @@ h1 {
 .panel h2 {
     margin-top: 0;
     color: #00d4ff;
-    font-size: 1.3em;
+    font-size: 1.2em;
     border-bottom: 2px solid #00d4ff;
     display: inline-block;
     padding-bottom: 5px;
@@ -67,14 +68,70 @@ canvas {
     width: 100%;
     height: auto;
     border: 2px solid #00d4ff;
+    margin-bottom: 15px;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+button {
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
     cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,212,255,0.3);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff4757 0%, #cc0033 100%);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffa502 0%, #cc7b00 100%);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c5ce7 0%, #4834d4 100%);
+}
+
+.btn-small {
+    padding: 5px 12px;
+    font-size: 14px;
+}
+
+.speed-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.3);
+    padding: 0 12px;
+    border-radius: 20px;
+}
+
+.speed-value {
+    font-weight: bold;
+    color: #00d4ff;
+    min-width: 50px;
+    text-align: center;
 }
 
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    margin-top: 15px;
+    margin: 15px 0;
 }
 
 .stat-card {
@@ -85,94 +142,55 @@ canvas {
 }
 
 .stat-label {
-    font-size: 0.8em;
+    font-size: 11px;
     color: #888;
 }
 
 .stat-value {
-    font-size: 1.5em;
+    font-size: 20px;
     font-weight: bold;
     color: #00d4ff;
 }
 
-.controls {
+.traffic-light-status {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 15px;
+    gap: 20px;
+    justify-content: center;
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
 }
 
-button {
-    border: none;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(0,212,255,0.3);
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-}
-
-.btn-warning {
-    background: linear-gradient(135deg, #ffa502 0%, #cc7b00 100%);
-}
-
-.btn-danger {
-    background: linear-gradient(135deg, #ff4757 0%, #cc0033 100%);
-}
-
-.btn-secondary {
-    background: linear-gradient(135deg, #6c5ce7 0%, #4834d4 100%);
-}
-
-.btn-small {
-    padding: 5px 15px;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.speed-control {
+.light-indicator {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(0,0,0,0.3);
     padding: 5px 15px;
     border-radius: 20px;
+    background: rgba(0,0,0,0.5);
 }
 
-.speed-value {
-    font-weight: bold;
-    color: #00d4ff;
-    min-width: 60px;
-    text-align: center;
+.light-bulb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.light-bulb.green {
+    background: #00ff00;
+    box-shadow: 0 0 10px #00ff00;
+}
+
+.light-bulb.red {
+    background: #ff0000;
+    box-shadow: 0 0 10px #ff0000;
 }
 
 .vehicle-list {
-    max-height: 300px;
+    max-height: 250px;
     overflow-y: auto;
-    margin-top: 15px;
-}
-
-.vehicle-list::-webkit-scrollbar {
-    width: 8px;
-}
-
-.vehicle-list::-webkit-scrollbar-track {
-    background: #1a1a2e;
-    border-radius: 4px;
-}
-
-.vehicle-list::-webkit-scrollbar-thumb {
-    background: #00d4ff;
-    border-radius: 4px;
+    margin: 15px 0;
 }
 
 .vehicle-item {
@@ -186,7 +204,7 @@ button:hover {
 .progress-bar {
     background: #333;
     border-radius: 10px;
-    height: 6px;
+    height: 4px;
     margin-top: 5px;
     overflow: hidden;
 }
@@ -195,19 +213,6 @@ button:hover {
     background: #00d4ff;
     height: 100%;
     transition: width 0.3s;
-}
-
-.scenario-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 15px;
-}
-
-.scenario-btn {
-    background: rgba(0,212,255,0.2);
-    font-size: 12px;
-    padding: 8px 12px;
 }
 
 .status {
@@ -236,11 +241,48 @@ button:hover {
     color: #f00;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+.map-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 10px 0;
 }
 
-.vehicle-item:first-child {
-    animation: pulse 1s ease-in-out infinite;
+.scenario-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+.scenario-btn {
+    background: rgba(0,212,255,0.2);
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.scenario-btn.active {
+    background: #00d4ff;
+    box-shadow: 0 0 15px #00d4ff;
+}
+
+.scenario-desc {
+    font-size: 11px;
+    color: #888;
+    margin-top: 5px;
+    display: block;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a2e;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00d4ff;
+    border-radius: 3px;
 }

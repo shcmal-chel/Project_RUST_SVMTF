@@ -6,15 +6,6 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[[bin]]
-name = "traffic_sim"
-path = "src/main.rs"
-required-features = ["cli"]
-
-[features]
-default = ["cli"]
-cli = ["dep:crossterm", "dep:ratatui", "dep:env_logger", "dep:anyhow"]
-
 [dependencies]
 # WASM
 wasm-bindgen = "0.2"
@@ -30,9 +21,3 @@ serde_yaml = "0.9"
 chrono = "0.4"
 thiserror = "1.0"
 log = "0.4"
-
-# CLI (опционально)
-crossterm = { version = "0.27", optional = true }
-ratatui = { version = "0.24", optional = true }
-env_logger = { version = "0.10", optional = true }
-anyhow = { version = "1.0", optional = true }
